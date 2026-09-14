@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <world name="phase1_mixed">
+    <include><uri>model://ground_plane</uri></include>
+    <include><uri>model://sun</uri></include>
+    <scene><shadows>false</shadows></scene>
+    <physics type="ode">
+      <real_time_update_rate>1000</real_time_update_rate><max_step_size>0.001</max_step_size>
+    </physics>
+    <!-- Entity state services (/set_entity_state, /get_entity_state) used by the
+         transactional reset of the environment node. Without this plugin the
+         services do not exist and no start pose can be set or verified. -->
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so">
+      <update_rate>1.0</update_rate>
+    </plugin>
+    <gui fullscreen="0"><camera name="phase1_camera"><pose>0 0 8 0 1.5707 0</pose></camera></gui>
+
+    <!-- Static collision geometry. Names are intentionally machine-classifiable. -->
+    <model name="arena_wall_north"><static>true</static><pose>0 3 0.25 0 0 0</pose><link name="link">
+      <collision name="static_collision"><geometry><box><size>6.4 0.12 0.5</size></box></geometry></collision>
+      <visual name="visual"><geometry><box><size>6.4 0.12 0.5</size></box></geometry><material><ambient>0.35 0.35 0.4 1</ambient></material></visual>
+    </link></model>
+    <model name="arena_wall_south"><static>true</static><pose>0 -3 0.25 0 0 0</pose><link name="link">
+      <collision name="static_collision"><geometry><box><size>6.4 0.12 0.5</size></box></geometry></collision>
+      <visual name="visual"><geometry><box><size>6.4 0.12 0.5</size></box></geometry><material><ambient>0.35 0.35 0.4 1</ambient></material></visual>
+    </link></model>
+    <model name="arena_wall_east"><static>true</static><pose>3 0 0.25 0 0 0</pose><link name="link">
+      <collision name="static_collision"><geometry><box><size>0.12 6.4 0.5</size></box></geometry></collision>
+      <visual name="visual"><geometry><box><size>0.12 6.4 0.5</size></box></geometry><material><ambient>0.35 0.35 0.4 1</ambient></material></visual>
+    </link></model>
+    <model name="arena_wall_west"><static>true</static><pose>-3 0 0.25 0 0 0</pose><link name="link">
+      <collision name="static_collision"><geometry><box><size>0.12 6.4 0.5</size></box></geometry></collision>
+      <visual name="visual"><geometry><box><size>0.12 6.4 0.5</size></box></geometry><material><ambient>0.35 0.35 0.4 1</ambient></material></visual>
+    </link></model>
+    <model name="static_box_1"><static>true</static><pose>0.8 0.85 0.35 0 0 0.25</pose><link name="link">
+      <collision name="static_collision"><geometry><box><size>0.6 0.6 0.7</size></box></geometry></collision>
+      <visual name="visual"><geometry><box><size>0.6 0.6 0.7</size></box></geometry><material><ambient>0.15 0.3 0.75 1</ambient></material></visual>
+    </link></model>
+    <model name="static_box_2"><static>true</static><pose>1.35 -0.9 0.35 0 0 -0.35</pose><link name="link">
+      <collision name="static_collision"><geometry><box><size>0.75 0.5 0.7</size></box></geometry></collision>
+      <visual name="visual"><geometry><box><size>0.75 0.5 0.7</size></box></geometry><material><ambient>0.15 0.3 0.75 1</ambient></material></visual>
+    </link></model>
+
+    <!-- Collision-active prescribed moving obstacles. Kinematic links are not
+         slowed or displaced by ground/contact forces, so the planar plugin's
+         seeded Twist integrates to the frozen analytic trajectory. -->
+    <model name="dynamic_obstacle_1"><pose>0 -1.45 0.35 0 0 0</pose><link name="link">
+      <kinematic>true</kinematic><gravity>false</gravity>
+      <inertial><mass>8</mass><inertia><ixx>0.2</ixx><iyy>0.2</iyy><izz>0.2</izz></inertia></inertial>
+      <collision name="dynamic_collision"><geometry><cylinder><radius>0.28</radius><length>0.7</length></cylinder></geometry></collision>
+      <visual name="visual"><geometry><cylinder><radius>0.28</radius><length>0.7</length></cylinder></geometry><material><ambient>0.85 0.2 0.15 1</ambient></material></visual>
+    </link><plugin name="planar_move" filename="libgazebo_ros_planar_move.so"><ros><namespace>/dynamic_obstacle_1</namespace></ros><update_rate>100</update_rate><publish_rate>50</publish_rate><publish_odom>true</publish_odom><publish_odom_tf>false</publish_odom_tf><odometry_frame>world</odometry_frame><robot_base_frame>link</robot_base_frame></plugin></model>
+    <model name="dynamic_obstacle_2"><pose>-1.45 0.45 0.3 0 0 0</pose><link name="link">
+      <kinematic>true</kinematic><gravity>false</gravity>
+      <inertial><mass>8</mass><inertia><ixx>0.2</ixx><iyy>0.2</iyy><izz>0.2</izz></inertia></inertial>
+      <collision name="dynamic_collision"><geometry><box><size>0.5 0.5 0.6</size></box></geometry></collision>
+      <visual name="visual"><geometry><box><size>0.5 0.5 0.6</size></box></geometry><material><ambient>0.9 0.45 0.1 1</ambient></material></visual>
+    </link><plugin name="planar_move" filename="libgazebo_ros_planar_move.so"><ros><namespace>/dynamic_obstacle_2</namespace></ros><update_rate>100</update_rate><publish_rate>50</publish_rate><publish_odom>true</publish_odom><publish_odom_tf>false</publish_odom_tf><odometry_frame>world</odometry_frame><robot_base_frame>link</robot_base_frame></plugin></model>
+  </world>
+</sdf>

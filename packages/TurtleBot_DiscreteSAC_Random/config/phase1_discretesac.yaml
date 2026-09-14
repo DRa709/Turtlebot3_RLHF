@@ -1,0 +1,21 @@
+# Discrete SAC algorithm configuration (standalone random-initial-state study).
+# Environment, random-start and evaluation settings are defined separately in
+# common_environment.yaml.
+discretesac_agent:
+  ros__parameters:
+    use_sim_time: true
+    algorithm: DiscreteSAC
+    algorithm_version: "1.0.2"
+    action_space: discrete
+    gamma: 0.99
+    actor_learning_rate: 0.0001
+    critic_learning_rate: 0.0001
+    alpha: 0.2
+    batch_size: 64
+    replay_capacity: 100000
+    warmup_steps: 5000
+    target_update_steps: 1000
+    hidden_size: 256
+    gradient_clip_norm: 10.0
+    device: cpu
+    torch_threads: 1
