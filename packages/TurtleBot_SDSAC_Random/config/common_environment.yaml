@@ -1,0 +1,125 @@
+# Shared environment layer — TurtleBot3 Phase-1, random-initial-state arm.
+# Single authority for every environment value. Algorithm hyperparameters never
+# belong here. Every byte of this file enters the configuration digest.
+#
+# Seeds: the four *_seed values are placeholders (-1) that the ARC dispatcher
+# overrides per run; preflight and both nodes refuse a placeholder.
+drl_environment:
+  ros__parameters:
+    use_sim_time: true
+    shared_layer_version: "3.0.3"
+    world_id: phase1_mixed
+    robot_model_name: burger
+    # --- POMDP (roadmap §2), frozen values for this standalone study
+    goal_x: 2.0
+    goal_y: 0.0
+    lidar_max: 3.5
+    distance_max: 10.0
+    lidar_sampling: nearest
+    control_period: 0.10
+    episode_max_steps: 500
+    collision_topic: /bumper_states
+    collision_topic_required: true
+    forward_linear: 0.15
+    steering_linear: 0.12
+    steering_angular: 0.60
+    rotation_angular: 1.00
+    reward_distance: 10.0
+    reward_step: 0.01
+    reward_collision: 100.0
+    reward_goal: 100.0
+    reward_angular: 0.05
+    reward_near: 0.25
+    safe_distance: 0.30
+    stop_distance: 0.16
+    goal_tolerance: 0.20
+    # --- Random initial-state distribution nu_R (RANDOM_INIT_SPEC.md, D-1)
+    init_x_min: -2.0
+    init_x_max: 2.0
+    init_y_min: -2.0
+    init_y_max: 2.0
+    init_start_clearance_min: 0.30      # centre-to-surface, >= safe_distance: no start in the near band
+    init_goal_exclusion_radius: 0.50
+    init_robot_footprint_radius: 0.12   # must be < init_start_clearance_min
+    init_max_rejections: 10000
+    # --- Reset transaction (D-10 timing; Gate 4.4)
+    init_settle_sim_seconds: 0.5
+    init_position_tolerance: 0.03
+    init_yaw_tolerance: 0.03
+    init_odom_tolerance: 0.05
+    init_odom_yaw_tolerance: 0.03
+    hold_tolerance_fraction: 0.25
+    decision_gap_tolerance_sim_seconds: 0.010
+    sensor_max_age_sim_seconds: 0.075
+    obstacle_position_tolerance: 0.05
+    service_timeout_wall_seconds: 30.0
+    obstacle_ack_timeout_wall_seconds: 10.0
+    sensor_timeout_wall_seconds: 10.0
+    action_timeout_wall_seconds: 300.0
+    fatal_on_reset_contact: true
+    # --- Anchor scenario E3 (D-6)
+    fixed_start_x: 0.0
+    fixed_start_y: 0.0
+    fixed_start_yaw: 0.0
+    # --- Dynamic obstacles (simulation-time schedule, per-episode phases; D-3)
+    dynamic_obstacle_names: [dynamic_obstacle_1, dynamic_obstacle_2]
+    dynamic_obstacle_axes: ["y", "x"]
+    obstacle_speed: 0.22
+    obstacle_half_period: 5.0
+    # --- Seed identities (roles are distinct even when values coincide)
+    world_seed: -1
+    initialization_seed: -1
+    dynamic_obstacle_seed: -1
+    evaluation_seed: -1
+
+dynamic_obstacles:
+  ros__parameters:
+    use_sim_time: true
+    control_period: 0.01
+
+evaluation_protocol:
+  # Consumed by the agent nodes, the wrappers and the validator (D-4, D-5, D-8).
+  # Not ROS parameters. The three execution phases are preregistered here; a
+  # run records its phase_label in the run identity and the validator checks the
+  # run against that phase's block. Learning seeds never touch initialization.
+  tier1_condition: E1
+  tier2_conditions: [E2, E3]
+  tier2_e3_episodes: 20
+  scenario_file: evaluation_scenarios_v1.csv
+  scenario_count: 100
+  physical_subset_count: 10
+  evaluation_seed_default: 9001
+  common_seeds:            # identical across algorithms and learning seeds (common random numbers)
+    world_seed: 7000
+    initialization_seed: 7001
+    dynamic_obstacle_seed: 7002
+    evaluation_seed: 9001
+  phases:
+    calibration:
+      environment_budget: 10000
+      checkpoint_interval_steps: 5000
+      full_checkpoint_interval_steps: 10000
+      tier2_checkpoint_steps: [10000]
+      tier1_episodes_per_checkpoint: 20
+      learning_seeds: [101]
+    pilot:
+      environment_budget: 10000
+      checkpoint_interval_steps: 5000
+      full_checkpoint_interval_steps: 10000
+      tier2_checkpoint_steps: [10000]
+      tier1_episodes_per_checkpoint: 20
+      learning_seeds: [101, 202]
+    controlled:
+      environment_budget: 500000
+      checkpoint_interval_steps: 25000
+      full_checkpoint_interval_steps: 100000
+      tier2_checkpoint_steps: [100000, 200000, 300000, 400000, 500000]
+      tier1_episodes_per_checkpoint: 20
+      learning_seeds: [101, 202, 303, 404, 505]
+
+validation:
+  # Consumed by the run validator (Gate 7). Not ROS parameters.
+  max_hold_out_of_tolerance_fraction: 0.01
+  max_decision_gap_sim_seconds: 0.010
+  max_sensor_age_sim_seconds: 0.075
+  max_obstacle_position_error: 0.05

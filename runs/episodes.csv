@@ -1,0 +1,1 @@
+run_id,episode_id,checkpoint_id,eval_mode,policy_mode,start_x,start_y,start_yaw,goal_x,goal_y,outcome,total_return,episode_length,wall_seconds,final_distance,path_length,interventions

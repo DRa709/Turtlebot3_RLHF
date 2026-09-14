@@ -1,0 +1,52 @@
+# Python bytecode and environments
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ROS 2 build & log artifacts
+build/
+install/
+log/
+*.bag
+*.db3
+*.db3-journal
+
+# Gazebo classic simulation logs
+*.log
+*.err
+*.out
+gzserver.log
+gzclient.log
+.gazebo/
+
+# Slurm cluster logs & large container images
+slurm-*.out
+slurm-*.err
+*.sif
+*.simg
+
+# IDE & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Large training checkpoints & replay cache
+*.npz
+*.pkl

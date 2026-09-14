@@ -1,0 +1,110 @@
+Bootstrap: docker
+From: osrf/ros:foxy-desktop
+
+%labels
+    Package TurtleBot_DuelingDoubleDQN_Random_Runtime
+    Algorithm DuelingDoubleDQN
+    Version 1.0.2
+    ActionSpace discrete
+    Arm random
+    ROS foxy
+    Gazebo 11
+    Purpose Phase-1 random-initial-state arm, discrete-action TurtleBot3 Burger navigation
+
+%help
+    Standalone runtime for the TurtleBot Dueling Double DQN random-start package:
+    ROS 2 Foxy, Gazebo 11 classic, TurtleBot3 simulation packages and CPU
+    PyTorch. Build (never on a login node):
+        apptainer build TurtleBot_DuelingDoubleDQN_Random_v1.0.2.sif apptainer/tb3_phase1_foxy.def
+    Record the image digest next to the image:
+        sha256sum TurtleBot_DuelingDoubleDQN_Random_v1.0.2.sif > TurtleBot_DuelingDoubleDQN_Random_v1.0.2.sif.sha256
+    Every run records that digest as container_sha256 in its identity.
+
+%environment
+    # Keep the pinned scientific stack separate from Ubuntu/Foxy Python
+    # packages.  PYTHONPATH also exposes it to ROS console scripts whose
+    # shebang is the system Python selected by ament/colcon.
+    export PATH=/opt/tb3-python/bin:$PATH
+    export PYTHONPATH=/opt/tb3-python/lib/python3.8/site-packages${PYTHONPATH:+:$PYTHONPATH}
+    export PYTHONNOUSERSITE=1
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
+    export TURTLEBOT3_MODEL=burger
+    export ROS_LOCALHOST_ONLY=1
+    export PYTHONUNBUFFERED=1
+    export OMP_NUM_THREADS=1
+    export MKL_NUM_THREADS=1
+    export GAZEBO_MODEL_PATH=/opt/ros/foxy/share/turtlebot3_gazebo/models
+
+%post
+    set -eu
+    export DEBIAN_FRONTEND=noninteractive
+    # Foxy is EOL and its old base image can carry a stale ROS repository key.
+    # Refresh the key over TLS *before* apt reads the ROS index.  There is no
+    # unauthenticated or fail-open apt fallback: a key/network failure aborts
+    # the image build.
+    python3 - <<'PY'
+import pathlib
+import urllib.request
+
+url = "https://raw.githubusercontent.com/ros/rosdistro/master/ros.key"
+target = pathlib.Path("/usr/share/keyrings/ros-archive-keyring.gpg")
+with urllib.request.urlopen(url, timeout=60) as response:
+    payload = response.read()
+if len(payload) < 100 or b"PUBLIC KEY" not in payload:
+    raise SystemExit("downloaded ROS archive key is not a plausible public key")
+target.write_bytes(payload)
+PY
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu focal main" > /etc/apt/sources.list.d/ros2-latest.list
+    rm -f /etc/apt/sources.list.d/ros2.list
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        gazebo11 libgazebo11-dev \
+        ros-foxy-gazebo-ros-pkgs \
+        ros-foxy-turtlebot3 ros-foxy-turtlebot3-msgs ros-foxy-turtlebot3-simulations \
+        python3-colcon-common-extensions python3-venv python3-yaml
+    rm -rf /var/lib/apt/lists/*
+    # Pinned Python dependencies (Python 3.8 in Foxy) live in an isolated venv.
+    # This prevents Ubuntu's mpl_toolkits from being combined with the pinned
+    # Matplotlib wheel while keeping apt-installed ROS modules on ROS_PYTHONPATH.
+    python3 -m venv /opt/tb3-python
+    VENV_PYTHON=/opt/tb3-python/bin/python
+    "$VENV_PYTHON" -m pip install --no-cache-dir --upgrade "pip==24.3.1" "setuptools==69.5.1" "wheel==0.43.0"
+    "$VENV_PYTHON" -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch==2.4.1+cpu"
+    "$VENV_PYTHON" -m pip install --no-cache-dir "numpy==1.24.4" "PyYAML==6.0.2" "pandas==2.0.3" "matplotlib==3.7.5" "pytest==8.3.3"
+    # Record the resolved environment inside the image for the runtime manifest.
+    "$VENV_PYTHON" -m pip freeze > /opt/python-requirements.lock
+    echo "ros_distro=foxy" > /opt/runtime-identity.txt
+    gzserver --version > /tmp/gazebo-version.txt
+    head -1 /tmp/gazebo-version.txt >> /opt/runtime-identity.txt
+    rm -f /tmp/gazebo-version.txt
+
+%runscript
+    exec /bin/bash "$@"
+
+%test
+    . /opt/ros/foxy/setup.sh
+    /opt/tb3-python/bin/python - <<'PY'
+import os
+import sys
+
+import gazebo_msgs.srv
+import matplotlib
+import mpl_toolkits.mplot3d
+import numpy
+import pandas
+import rclpy
+import torch
+import yaml
+
+prefix = os.path.realpath("/opt/tb3-python") + os.sep
+if os.path.realpath(sys.prefix) + os.sep != prefix:
+    raise SystemExit(f"wrong Python prefix: {sys.prefix}")
+for module in (torch, numpy, yaml, pandas, matplotlib, mpl_toolkits.mplot3d):
+    location = os.path.realpath(module.__file__)
+    if not location.startswith(prefix):
+        raise SystemExit(f"mixed scientific Python installation: {module.__name__} from {location}")
+print("runtime ok", torch.__version__, matplotlib.__version__)
+PY
+    ros2 pkg prefix turtlebot3_gazebo
+    gzserver --version | head -1

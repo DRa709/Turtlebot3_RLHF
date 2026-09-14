@@ -1,0 +1,24 @@
+# Dueling Double DQN algorithm configuration (roadmap §3.3). These are the declared values of
+# this standalone random-initial-state study. Environment values do not belong here.
+duelingdoubledqn_agent:
+  ros__parameters:
+    use_sim_time: true
+    algorithm: DuelingDoubleDQN
+    algorithm_version: "1.0.2"
+    action_space: discrete
+    gamma: 0.99
+    learning_rate: 0.0001
+    batch_size: 64
+    replay_capacity: 100000
+    warmup_steps: 5000
+    target_update_steps: 1000
+    epsilon_start: 1.0
+    epsilon_end: 0.05
+    epsilon_decay_steps: 100000     # counted from transition 0 (warm-up included): epsilon = 0.9525 at the first update
+    hidden_size: 256
+    dueling_aggregation: mean
+    gradient_clip_norm: 10.0
+    loss: huber
+    # Controlled runs are CPU-pinned; a device change is a configuration change.
+    device: cpu
+    torch_threads: 1

@@ -1,0 +1,1 @@
+episode_id,step_id,timestamp,raw_min_scan,action_idx,action_name,req_linear,req_angular,exec_linear,exec_angular,dist_progress,step_penalty,collision_penalty,goal_bonus,angular_penalty,near_penalty,total_step_reward,pose_x,pose_y,pose_yaw,goal_dist,goal_bearing,terminated,event

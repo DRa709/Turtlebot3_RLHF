@@ -1,0 +1,31 @@
+# Rainbow DQN algorithm configuration (roadmap section 3.4).
+# Environment, random-start and evaluation settings are defined separately in
+# common_environment.yaml.
+rainbowdqn_agent:
+  ros__parameters:
+    use_sim_time: true
+    algorithm: RainbowDQN
+    algorithm_version: "1.0.1"
+    action_space: discrete
+    gamma: 0.99
+    learning_rate: 0.0001
+    batch_size: 64
+    replay_capacity: 100000
+    warmup_steps: 5000
+    target_update_steps: 1000
+    hidden_size: 256
+    gradient_clip_norm: 10.0
+    atoms: 51
+    v_min: -200.0
+    v_max: 200.0
+    n_step: 3
+    per_alpha: 0.6
+    per_beta_start: 0.4
+    per_beta_end: 1.0
+    per_beta_decay_steps: 500000
+    per_epsilon: 0.000001
+    noisy_sigma0: 0.5
+    dueling_aggregation: mean
+    distributional_loss: cross_entropy
+    device: cpu
+    torch_threads: 1
