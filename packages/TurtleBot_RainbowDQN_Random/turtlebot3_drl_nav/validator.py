@@ -631,8 +631,8 @@ def _validate_episodes(report, episodes, transitions, sampler, seeds, common, bu
             repro = False
         if not (
             sampler.admissible(_f(e["requested_x"]), _f(e["requested_y"]))
-            and sampler.admissible(_f(e["realized_x"]), _f(e["realized_y"]), margin=float(common["init_position_tolerance"]))
-            and sampler.admissible(_f(e["odom_x"]), _f(e["odom_y"]), margin=float(common["init_odom_tolerance"]))
+            and sampler.admissible(_f(e["realized_x"]), _f(e["realized_y"]))
+            and sampler.admissible(_f(e["odom_x"]), _f(e["odom_y"]))
             and _f(e["init_scan_clearance"]) >= sampler.law.start_clearance_min
         ):
             repro = False
@@ -795,8 +795,8 @@ def _initialization_geometry_ok(row, sampler, common, require_support=True) -> b
                 return False
         if require_support and not (
             _b(row["init_support_ok"])
-            and sampler.admissible(realized_x, realized_y, margin=float(common["init_position_tolerance"]))
-            and sampler.admissible(odom_x, odom_y, margin=float(common["init_odom_tolerance"]))
+            and sampler.admissible(realized_x, realized_y)
+            and sampler.admissible(odom_x, odom_y)
             and values[13] >= sampler.law.start_clearance_min
         ):
             return False

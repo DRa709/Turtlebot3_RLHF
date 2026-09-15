@@ -87,6 +87,37 @@ def write_runtime_provenance(package_root: str, run_dir: str, identity, budget: 
         stream.write("Python 3.8.10\nnumpy=1.24.4\ntorch=2.4.1+cpu\nros_distro=foxy\nGazebo multi-robot simulator, version 11\nros_domain_id=1 gazebo_master_uri=http://127.0.0.1:11345\n")
 
 
+class InitializationGeometryTests(unittest.TestCase):
+    def test_small_pose_errors_cannot_expand_initialization_support(self):
+        from test_episode_engine import CONFIG, make_engine, run_reset
+        from turtlebot3_drl_nav.env_config import load_common_parameters
+        from turtlebot3_drl_nav.episode_engine import EpisodeEngine
+        from turtlebot3_drl_nav.protocol import EpisodeSpec
+        from turtlebot3_drl_nav.validator import _initialization_geometry_ok
+
+        engine, sim, _, _ = make_engine(seeds=(7000, 3, 7002, 9001))
+        self.assertEqual(run_reset(engine, sim, EpisodeSpec(phase="training", policy_mode="epsilon_greedy")), EpisodeEngine.AWAIT_ACTION)
+        common = load_common_parameters(CONFIG)
+        baseline = dict(engine.current.init_row)
+        for field in ("init_support_ok", "init_tolerance_ok", "contact_during_reset"):
+            baseline[field] = str(int(baseline[field]))
+        self.assertTrue(_initialization_geometry_ok(baseline, engine.sampler, common))
+        self.assertFalse(engine.sampler.admissible(baseline["realized_x"] + 0.029, baseline["realized_y"]))
+
+        for field in ("realized_x", "odom_x"):
+            with self.subTest(field=field):
+                row = dict(baseline)
+                row[field] += 0.029
+                if field == "realized_x":
+                    row["odom_x"] = row["realized_x"]
+                    row["init_pos_error"] = 0.029
+                else:
+                    row["init_odom_error"] = 0.029
+                self.assertFalse(_initialization_geometry_ok(row, engine.sampler, common))
+                # Fixed-start evaluation exempts support membership, not pose tolerances.
+                self.assertTrue(_initialization_geometry_ok(row, engine.sampler, common, require_support=False))
+
+
 class ValidatorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

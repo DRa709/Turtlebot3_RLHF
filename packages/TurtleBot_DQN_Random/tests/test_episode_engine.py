@@ -165,6 +165,24 @@ class ResetTransactionTests(unittest.TestCase):
         self.assertEqual(run_reset(engine, sim, EpisodeSpec(phase="training", policy_mode="epsilon_greedy")), EpisodeEngine.FATAL)
         self.assertIn("support", sim.fatal)
 
+    def test_odometry_position_must_remain_inside_support(self):
+        engine, sim, _, _ = make_engine(seeds=(7000, 3, 7002, 9001))
+        sim.odom_offset = (0.029, 0.0)
+        state = run_reset(engine, sim, EpisodeSpec(phase="training", policy_mode="epsilon_greedy"))
+        start = engine.current.start
+        self.assertTrue(engine.sampler.admissible(start.x, start.y))
+        self.assertFalse(engine.sampler.admissible(start.x + sim.odom_offset[0], start.y))
+        self.assertLess(sim.odom_offset[0], engine.cfg.odom_tolerance)
+        self.assertEqual(state, EpisodeEngine.FATAL)
+        self.assertIn("support", sim.fatal)
+
+    def test_position_tolerance_allows_perturbation_inside_support(self):
+        engine, sim, _, _ = make_engine(seeds=(7000, 3, 7002, 9001))
+        sim.pose_perturbation = (-0.01, 0.0, 0.0)
+        self.assertEqual(run_reset(engine, sim, EpisodeSpec(phase="training", policy_mode="epsilon_greedy")), EpisodeEngine.AWAIT_ACTION)
+        self.assertAlmostEqual(engine.current.init_row["init_pos_error"], 0.01)
+        self.assertTrue(engine.current.init_row["init_support_ok"])
+
     def test_odometry_yaw_mismatch_is_fatal(self):
         engine, sim, _, _ = make_engine()
         sim.odom_yaw_offset = 0.2

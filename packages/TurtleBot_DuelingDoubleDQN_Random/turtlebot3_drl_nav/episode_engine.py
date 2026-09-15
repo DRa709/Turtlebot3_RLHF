@@ -459,7 +459,7 @@ class EpisodeEngine:
             if math.hypot(ox - ex, oy - ey) > cfg.position_tolerance:
                 return self._fatal(f"obstacle {name} not at its reset pose after /reset_world")
         support_required = cur.init_kind != "E3_fixed"
-        support_ok = self.sampler.admissible(rx, ry, margin=cfg.position_tolerance) if support_required else True
+        support_ok = self.sampler.admissible(rx, ry) if support_required else True
         if not support_ok:
             return self._fatal("realized robot pose lies outside the declared initialization support")
         cur.init_row.update({
@@ -623,7 +623,7 @@ class EpisodeEngine:
         observation, distance, heading, min_scan = self._observe(scan, odom, 0.0, 0.0)
         support_required = cur.init_kind != "E3_fixed"
         support_ok = (not support_required) or (
-            self.sampler.admissible(odom.x, odom.y, margin=cfg.odom_tolerance)
+            self.sampler.admissible(odom.x, odom.y)
             and min_scan >= self.sampler.law.start_clearance_min
         )
         if not support_ok:
