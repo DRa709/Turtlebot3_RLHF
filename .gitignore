@@ -12,6 +12,9 @@ ENV/
 .installed.cfg
 *.egg
 .pytest_cache/
+pytest-cache-files-*/
+.mplconfig/
+benchmarks/generated_training/
 .coverage
 htmlcov/
 

@@ -1,0 +1,63 @@
+{
+  "comparison_budget_recomputation": [
+    {
+      "comparisons": 20,
+      "correct": 11,
+      "strict_pairs": 22,
+      "all_pairs": 37,
+      "accuracy_pct": 50.0,
+      "pair_cross_entropy": 1.2155694811208626
+    },
+    {
+      "comparisons": 50,
+      "correct": 16,
+      "strict_pairs": 22,
+      "all_pairs": 37,
+      "accuracy_pct": 72.72727272727273,
+      "pair_cross_entropy": 0.9477813683327149
+    },
+    {
+      "comparisons": 100,
+      "correct": 17,
+      "strict_pairs": 22,
+      "all_pairs": 37,
+      "accuracy_pct": 77.27272727272727,
+      "pair_cross_entropy": 0.8303258741669566
+    },
+    {
+      "comparisons": 150,
+      "correct": 17,
+      "strict_pairs": 22,
+      "all_pairs": 37,
+      "accuracy_pct": 77.27272727272727,
+      "pair_cross_entropy": 0.6979667739609244
+    },
+    {
+      "comparisons": 200,
+      "correct": 19,
+      "strict_pairs": 22,
+      "all_pairs": 37,
+      "accuracy_pct": 86.36363636363636,
+      "pair_cross_entropy": 0.7270605006262666
+    }
+  ],
+  "same_validation_pair_ids": true,
+  "continuation_rows": 1144,
+  "exclusive_outcomes": true,
+  "recorded_contacts": 0,
+  "matched_requested_E2_scenarios": true,
+  "benchmark_seed_summaries_checked": true,
+  "scope": "Recomputes saved CSV records; no simulator runs, new labels, or training.",
+  "input_sha256": {
+    "checkpoint_summary.csv": "adfeb41a8e06cffc1e8cbe30fb066d1d90dff50c54ce92325cc765bdea568a58",
+    "comparison_budget_metrics.csv": "1716d471e61f8d396226a6f3d1103d4af744815a73825151b14d66d7d59a32fe",
+    "comparison_budget_predictions.csv": "9d17caa0c7dda5c0167eb1f358d4de9871dc69f5d5fd692a93238c172f086e9d",
+    "comparison_provenance.json": "d820a116a1cd848cfeb6afc3d7c4961712ad725c22e056fb3332b7a5e536523f",
+    "evaluation_curves.csv": "cb5e207df13195b103a3078e81f6feb57d9c9e7ab6ebac923e37b69e6c246a09",
+    "evaluation_episodes.csv": "d131521cdf56c8c27c2a12cce40ec9f149fe85eac79e115bd388d87573aa4ebf",
+    "policy_diagnostics.csv": "34c16dbe9be4802dac3f1f000a172b1b96dcf33b0259d6bfee732963a7349f25",
+    "seed_results.csv": "a5567a91e80ba0bdc3c2b2dc17e6a71bc8346d643dbab2a8708a16419356d360",
+    "seed_summary.csv": "ec37d9ff8a66781e32be5eb75934580a61ea712537eebf798301924d8709cab9",
+    "summary.csv": "412f1953aac10cf90d7cf36f209912935aaf6697878925da3f626f9ed81c9f7b"
+  }
+}

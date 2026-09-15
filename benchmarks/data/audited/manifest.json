@@ -1,0 +1,16 @@
+{
+  "source": "Audited aggregate tables accompanying ICRA2027 manuscript revision 6",
+  "snapshot_date": "2026-09-15",
+  "repository_base_commit": "e7eb5a888f54eff136354ecba340cec7d0a26192",
+  "sha256": {
+    "checkpoint_summary.csv": "adfeb41a8e06cffc1e8cbe30fb066d1d90dff50c54ce92325cc765bdea568a58",
+    "comparison_budget_metrics.csv": "1716d471e61f8d396226a6f3d1103d4af744815a73825151b14d66d7d59a32fe",
+    "evaluation_curves.csv": "cb5e207df13195b103a3078e81f6feb57d9c9e7ab6ebac923e37b69e6c246a09",
+    "policy_diagnostics.csv": "34c16dbe9be4802dac3f1f000a172b1b96dcf33b0259d6bfee732963a7349f25",
+    "seed_results.csv": "a5567a91e80ba0bdc3c2b2dc17e6a71bc8346d643dbab2a8708a16419356d360",
+    "seed_summary.csv": "ec37d9ff8a66781e32be5eb75934580a61ea712537eebf798301924d8709cab9",
+    "summary.csv": "412f1953aac10cf90d7cf36f209912935aaf6697878925da3f626f9ed81c9f7b"
+  },
+  "scope": "Unchanged aggregate tables. Raw episodes, individual human labels, models, and simulator deployments are not included.",
+  "earlier_audit": "source_verification.json records checks run before publication using additional episode/prediction records; the new builder only checks available aggregates."
+}

@@ -5,6 +5,8 @@
   <version>2.0.0</version>
   <description>Deep Reinforcement Learning and RLHF Navigation Suite for TurtleBot3</description>
   <maintainer email="dhruvshankar@vt.edu">Dhruv Shankar Ray</maintainer>
+  <author email="dhruvshankar@vt.edu">Dhruv Shankar Ray</author>
+  <author email="ashabarua@vt.edu">Asha Barua</author>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
