@@ -1,448 +1,170 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TurtleBot3 Phase-1 Multi-Algorithm Benchmark Suite</title>
-    <style>
-        :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --surface-card: #334155;
-            --primary: #38bdf8;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent-green: #4ade80;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 24px;
-        }
-        .header {
-            max-width: 1400px;
-            margin: 0 auto 24px auto;
-            border-bottom: 1px solid var(--surface-card);
-            padding-bottom: 16px;
-        }
-        .header h1 {
-            margin: 0 0 8px 0;
-            font-size: 28px;
-            color: var(--primary);
-        }
-        .header p {
-            margin: 0;
-            color: var(--text-muted);
-            font-size: 15px;
-        }
-        .tabs-bar {
-            max-width: 1400px;
-            margin: 0 auto 24px auto;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            border-bottom: 2px solid var(--surface);
-            padding-bottom: 8px;
-        }
-        .tab-btn {
-            background: var(--surface);
-            color: var(--text-muted);
-            border: 1px solid var(--surface-card);
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.2s ease;
-        }
-        .tab-btn:hover {
-            background: var(--surface-card);
-            color: var(--text);
-        }
-        .tab-btn.active {
-            background: var(--primary);
-            color: #0f172a;
-            border-color: var(--primary);
-        }
-        .tab-content {
-            display: none;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .tab-content.active {
-            display: block;
-            animation: fadeIn 0.25s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .header-card {
-            background: var(--surface);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-            border: 1px solid var(--surface-card);
-        }
-        .header-card h2 {
-            margin: 0 0 16px 0;
-            font-size: 22px;
-            color: var(--text);
-        }
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-        }
-        .metric-card {
-            background: var(--surface-card);
-            padding: 14px 18px;
-            border-radius: 8px;
-        }
-        .metric-label {
-            font-size: 12px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 6px;
-        }
-        .metric-value {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--accent-green);
-        }
-        .metric-std {
-            font-size: 14px;
-            color: var(--text-muted);
-            font-weight: normal;
-        }
-        .figures-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(620px, 1fr));
-            gap: 24px;
-            margin-bottom: 32px;
-        }
-        .figure-container {
-            background: var(--surface);
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid var(--surface-card);
-        }
-        .figure-container h3 {
-            margin: 0 0 12px 0;
-            font-size: 16px;
-            color: var(--primary);
-        }
-        .figure-container img {
-            width: 100%;
-            border-radius: 8px;
-            cursor: zoom-in;
-            background: white;
-            transition: transform 0.2s ease;
-        }
-        .figure-container img:hover {
-            transform: scale(1.01);
-        }
-        /* Fullscreen image modal */
-        #modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(4px);
-            align-items: center;
-            justify-content: center;
-        }
-        #modal img {
-            max-width: 95vw;
-            max-height: 95vh;
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            cursor: zoom-out;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🚀 TurtleBot3 Phase-1 Multi-Algorithm Benchmark Suite</h1>
-        <p>Virginia Tech Advanced Research Computing (ARC) | 60-Task Controlled Production Evaluation</p>
-    </div>
-    
-    <div class="tabs-bar">
-        <button class="tab-btn active" onclick="switchTab('comparative')">🏆 Cross-Algorithm Comparison</button>
-        
-        <button class="tab-btn active" onclick="switchTab('dqn')">DQN</button>
-        
-        <button class="tab-btn " onclick="switchTab('doubledqn')">DoubleDQN</button>
-        
-        <button class="tab-btn " onclick="switchTab('duelingdoubledqn')">DuelingDoubleDQN</button>
-        
-        <button class="tab-btn " onclick="switchTab('rainbowdqn')">RainbowDQN</button>
-        
-        <button class="tab-btn " onclick="switchTab('discretesac')">DiscreteSAC</button>
-        
-        <button class="tab-btn " onclick="switchTab('sdsac')">SDSAC</button>
-        
-    </div>
-    
-    <!-- Comparative Tab -->
-    <div id="tab-comparative" class="tab-content active">
-        <div class="header-card">
-            <h2>Cross-Algorithm Performance & Sample Efficiency Overlays</h2>
-            <p style="color: var(--text-muted); margin: 0;">Comparative learning curves and Pareto trade-off analyses aggregating 5-seed empirical distributions across all Phase-1 DRL models.</p>
-        </div>
-        <div class="figures-row">
-            <div class="figure-container">
-                <h3>Comparative Learning Curves (Return, Success Rate, Length, Outcomes)</h3>
-                <img src="comparative/comparative_learning_curves.png" alt="Comparative Learning Curves" onclick="openModal(this.src)" />
-            </div>
-            <div class="figure-container">
-                <h3>Sample Efficiency, Converged Returns & Safety Pareto Frontier</h3>
-                <img src="comparative/comparative_sample_efficiency.png" alt="Sample Efficiency & Pareto Frontier" onclick="openModal(this.src)" />
-            </div>
-        </div>
-    </div>
-    
-    <!-- Individual Algorithm Tabs -->
-    
-        <div id="tab-dqn" class="tab-content active">
-            <div class="header-card">
-                <h2>Deep Q-Network (DQN)</h2>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Goal Success Rate</div>
-                        <div class="metric-value">82.6% <span class="metric-std">±4.5%</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Mean Return</div>
-                        <div class="metric-value">96.77 <span class="metric-std">±4.65</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Transitions</div>
-                        <div class="metric-value">978,695</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Episodes</div>
-                        <div class="metric-value">4,811 across 5 seeds</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="figures-row">
-                <div class="figure-container">
-                    <h3>Policy Performance & Multi-Seed Convergence Curves</h3>
-                    <img src="individual/dqn/dqn_benchmark_curves.png" alt="DQN Benchmark Curves" onclick="openModal(this.src)" />
-                </div>
-                <div class="figure-container">
-                    <h3>Q-Learning & Optimization Diagnostics</h3>
-                    <img src="individual/dqn/dqn_training_diagnostics.png" alt="DQN Diagnostics" onclick="openModal(this.src)" onerror="this.parentElement.style.display='none'" />
-                </div>
-            </div>
-        </div>
-        
-        <div id="tab-doubledqn" class="tab-content ">
-            <div class="header-card">
-                <h2>Double Deep Q-Network (DoubleDQN)</h2>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Goal Success Rate</div>
-                        <div class="metric-value">87.6% <span class="metric-std">±3.5%</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Mean Return</div>
-                        <div class="metric-value">85.31 <span class="metric-std">±5.02</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Transitions</div>
-                        <div class="metric-value">736,690</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Episodes</div>
-                        <div class="metric-value">5,000 across 5 seeds</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="figures-row">
-                <div class="figure-container">
-                    <h3>Policy Performance & Multi-Seed Convergence Curves</h3>
-                    <img src="individual/doubledqn/doubledqn_benchmark_curves.png" alt="DoubleDQN Benchmark Curves" onclick="openModal(this.src)" />
-                </div>
-                <div class="figure-container">
-                    <h3>Q-Learning & Optimization Diagnostics</h3>
-                    <img src="individual/doubledqn/doubledqn_training_diagnostics.png" alt="DoubleDQN Diagnostics" onclick="openModal(this.src)" onerror="this.parentElement.style.display='none'" />
-                </div>
-            </div>
-        </div>
-        
-        <div id="tab-duelingdoubledqn" class="tab-content ">
-            <div class="header-card">
-                <h2>Dueling Double DQN (DuelingDoubleDQN)</h2>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Goal Success Rate</div>
-                        <div class="metric-value">90.4% <span class="metric-std">±1.9%</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Mean Return</div>
-                        <div class="metric-value">93.65 <span class="metric-std">±2.70</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Transitions</div>
-                        <div class="metric-value">745,214</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Episodes</div>
-                        <div class="metric-value">5,000 across 5 seeds</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="figures-row">
-                <div class="figure-container">
-                    <h3>Policy Performance & Multi-Seed Convergence Curves</h3>
-                    <img src="individual/duelingdoubledqn/duelingdoubledqn_benchmark_curves.png" alt="DuelingDoubleDQN Benchmark Curves" onclick="openModal(this.src)" />
-                </div>
-                <div class="figure-container">
-                    <h3>Q-Learning & Optimization Diagnostics</h3>
-                    <img src="individual/duelingdoubledqn/duelingdoubledqn_training_diagnostics.png" alt="DuelingDoubleDQN Diagnostics" onclick="openModal(this.src)" onerror="this.parentElement.style.display='none'" />
-                </div>
-            </div>
-        </div>
-        
-        <div id="tab-rainbowdqn" class="tab-content ">
-            <div class="header-card">
-                <h2>Rainbow DQN (RainbowDQN)</h2>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Goal Success Rate</div>
-                        <div class="metric-value">96.0% <span class="metric-std">±3.3%</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Mean Return</div>
-                        <div class="metric-value">106.20 <span class="metric-std">±4.81</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Transitions</div>
-                        <div class="metric-value">759,782</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Episodes</div>
-                        <div class="metric-value">5,000 across 5 seeds</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="figures-row">
-                <div class="figure-container">
-                    <h3>Policy Performance & Multi-Seed Convergence Curves</h3>
-                    <img src="individual/rainbowdqn/rainbowdqn_benchmark_curves.png" alt="RainbowDQN Benchmark Curves" onclick="openModal(this.src)" />
-                </div>
-                <div class="figure-container">
-                    <h3>Q-Learning & Optimization Diagnostics</h3>
-                    <img src="individual/rainbowdqn/rainbowdqn_training_diagnostics.png" alt="RainbowDQN Diagnostics" onclick="openModal(this.src)" onerror="this.parentElement.style.display='none'" />
-                </div>
-            </div>
-        </div>
-        
-        <div id="tab-discretesac" class="tab-content ">
-            <div class="header-card">
-                <h2>Discrete Soft Actor-Critic (DiscreteSAC)</h2>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Goal Success Rate</div>
-                        <div class="metric-value">93.0% <span class="metric-std">±3.4%</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Mean Return</div>
-                        <div class="metric-value">104.47 <span class="metric-std">±5.12</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Transitions</div>
-                        <div class="metric-value">757,953</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Episodes</div>
-                        <div class="metric-value">5,000 across 5 seeds</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="figures-row">
-                <div class="figure-container">
-                    <h3>Policy Performance & Multi-Seed Convergence Curves</h3>
-                    <img src="individual/discretesac/discretesac_benchmark_curves.png" alt="DiscreteSAC Benchmark Curves" onclick="openModal(this.src)" />
-                </div>
-                <div class="figure-container">
-                    <h3>Q-Learning & Optimization Diagnostics</h3>
-                    <img src="individual/discretesac/discretesac_training_diagnostics.png" alt="DiscreteSAC Diagnostics" onclick="openModal(this.src)" onerror="this.parentElement.style.display='none'" />
-                </div>
-            </div>
-        </div>
-        
-        <div id="tab-sdsac" class="tab-content ">
-            <div class="header-card">
-                <h2>State-Dependent Soft Actor-Critic (SDSAC)</h2>
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Goal Success Rate</div>
-                        <div class="metric-value">96.0% <span class="metric-std">±2.3%</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Recent Mean Return</div>
-                        <div class="metric-value">110.91 <span class="metric-std">±3.16</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Transitions</div>
-                        <div class="metric-value">764,483</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Total Episodes</div>
-                        <div class="metric-value">5,000 across 5 seeds</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="figures-row">
-                <div class="figure-container">
-                    <h3>Policy Performance & Multi-Seed Convergence Curves</h3>
-                    <img src="individual/sdsac/sdsac_benchmark_curves.png" alt="SDSAC Benchmark Curves" onclick="openModal(this.src)" />
-                </div>
-                <div class="figure-container">
-                    <h3>Q-Learning & Optimization Diagnostics</h3>
-                    <img src="individual/sdsac/sdsac_training_diagnostics.png" alt="SDSAC Diagnostics" onclick="openModal(this.src)" onerror="this.parentElement.style.display='none'" />
-                </div>
-            </div>
-        </div>
-        
-    
-    <div id="modal" onclick="closeModal()">
-        <img id="modal-img" src="" alt="Fullscreen view" />
-    </div>
-    
-    <script>
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
-            const targetContent = document.getElementById('tab-' + tabId);
-            if (targetContent) targetContent.classList.add('active');
-            
-            event.target.classList.add('active');
-        }
-        function openModal(src) {
-            document.getElementById('modal-img').src = src;
-            document.getElementById('modal').style.display = 'flex';
-        }
-        function closeModal() {
-            document.getElementById('modal').style.display = 'none';
-        }
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeModal();
-        });
-    </script>
-</body>
-</html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TurtleBot3 RLHF | Evaluation results</title><style>
+body{font:16px/1.6 system-ui,sans-serif;margin:0;background:#f3f6f5;color:#233a34}
+main{max-width:1060px;margin:auto;padding:36px 24px}h1{font-size:34px;line-height:1.2}
+h2{line-height:1.25}section{background:white;padding:28px;margin:28px 0;border:1px solid #d8e2de;border-radius:12px}
+a{color:#086b62}.lead{font-size:18px}img{max-width:100%;height:auto}figure{margin:24px 0}
+figcaption{font-size:14px;color:#4c625a}.table{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 11px;border-bottom:1px solid #dae4df;text-align:left}th{background:#edf5f1}
+footer{font-size:14px;color:#4c625a}@media(max-width:600px){main{padding:16px 12px}section{padding:16px}h1{font-size:27px}}
+</style></head><body><main><h1>TurtleBot3 RLHF: evaluation results</h1>
+<p class="lead">Goal reaching, safety stops, physical contacts, and reward prediction are reported separately.</p>
+<p><a href="../README.md">Project documentation</a> · <a href="data/audited/README.md">Data and provenance</a> ·
+<a href="../docs/EVALUATION.md">Evaluation methodology and reproducibility</a></p>
+<section><h2>Benchmark: 97 goals in 100 trials</h2><p>Final primary E1 evaluation: five learners with 20 trials each. Discrete SAC, Double DQN, and Rainbow tie at 97%. SD is across five learner rates.</p><div class="table"><table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Method</th>
+      <th>Goals</th>
+      <th>Success (%)</th>
+      <th>Learner SD (pp)</th>
+      <th>Safety stops</th>
+      <th>Contacts</th>
+      <th>Timeouts</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>DQN</td>
+      <td>90/100</td>
+      <td>90</td>
+      <td>9.35</td>
+      <td>9</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>Double DQN</td>
+      <td>97/100</td>
+      <td>97</td>
+      <td>2.74</td>
+      <td>2</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>Dueling Double</td>
+      <td>86/100</td>
+      <td>86</td>
+      <td>6.52</td>
+      <td>13</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>Rainbow</td>
+      <td>97/100</td>
+      <td>97</td>
+      <td>2.74</td>
+      <td>3</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>Discrete SAC</td>
+      <td>97/100</td>
+      <td>97</td>
+      <td>6.71</td>
+      <td>3</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>SD-SAC</td>
+      <td>95/100</td>
+      <td>95</td>
+      <td>8.66</td>
+      <td>4</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+  </tbody>
+</table></div><figure><img src="figures/benchmark.png" alt="Recorded checkpoint means and all five final learner rates. Cases change between checkpoints."><figcaption>Recorded checkpoint means and all five final learner rates. Cases change between checkpoints.</figcaption></figure><figure><img src="figures/outcomes.png" alt="Exclusive terminal outcomes. Safety stops are distinct from recorded physical contacts."><figcaption>Exclusive terminal outcomes. Safety stops are distinct from recorded physical contacts.</figcaption></figure></section><section><h2>Goal retention during policy continuation</h2><p>E2 differs from E1: 20 scenarios, two learners, and two action-selection modes, totaling 80 trials. Both conditions use actor-only continuation. Neither retained baseline performance.</p><div class="table"><table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Condition</th>
+      <th>Goals</th>
+      <th>Success (%)</th>
+      <th>Safety stops</th>
+      <th>Contacts</th>
+      <th>Timeouts</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Frozen baseline</td>
+      <td>78/80</td>
+      <td>97.5</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>Original reward, +10k actions</td>
+      <td>6/80</td>
+      <td>7.5</td>
+      <td>68</td>
+      <td>0</td>
+      <td>6</td>
+    </tr>
+    <tr>
+      <td>Preference reward (200), +10k actions</td>
+      <td>1/80</td>
+      <td>1.25</td>
+      <td>76</td>
+      <td>0</td>
+      <td>3</td>
+    </tr>
+  </tbody>
+</table></div><figure><img src="figures/retention.png" alt="Seed-range shading is not a confidence interval. Uneven training-action counts appear as equally spaced checkpoint categories."><figcaption>Seed-range shading is not a confidence interval. Uneven training-action counts appear as equally spaced checkpoint categories.</figcaption></figure><figure><img src="figures/diagnostics.png" alt="Clearance falls in both conditions. KL describes policy change, not its cause. Zero contacts does not establish improved obstacle avoidance."><figcaption>Clearance falls in both conditions. KL describes policy change, not its cause. Zero contacts does not establish improved obstacle avoidance.</figcaption></figure></section><section><h2>Human-comparison budgets and reward prediction</h2><p>The same 22 strict validation pairs determine accuracy; cross-entropy uses all 37 pairs including 15 ties. Validation was reused for selection and only one reward-model seed is available.</p><div class="table"><table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Collected comparisons</th>
+      <th>Fitting pairs</th>
+      <th>Correct / strict pairs</th>
+      <th>Accuracy (%)</th>
+      <th>Pair cross-entropy</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>20</td>
+      <td>15</td>
+      <td>11/22</td>
+      <td>50.00</td>
+      <td>1.216</td>
+    </tr>
+    <tr>
+      <td>50</td>
+      <td>36</td>
+      <td>16/22</td>
+      <td>72.73</td>
+      <td>0.948</td>
+    </tr>
+    <tr>
+      <td>100</td>
+      <td>75</td>
+      <td>17/22</td>
+      <td>77.27</td>
+      <td>0.830</td>
+    </tr>
+    <tr>
+      <td>150</td>
+      <td>109</td>
+      <td>17/22</td>
+      <td>77.27</td>
+      <td>0.698</td>
+    </tr>
+    <tr>
+      <td>200</td>
+      <td>143</td>
+      <td>19/22</td>
+      <td>86.36</td>
+      <td>0.727</td>
+    </tr>
+  </tbody>
+</table></div><figure><img src="figures/comparison_budget.png" alt="Strict accuracy rises from 50.00% to 86.36%; cross-entropy is lowest at 150. Navigation was evaluated only at 200 comparisons. Improvements across navigation budgets remain untested."><figcaption>Strict accuracy rises from 50.00% to 86.36%; cross-entropy is lowest at 150. Navigation was evaluated only at 200 comparisons. Improvements across navigation budgets remain untested.</figcaption></figure></section><footer>Evaluation data snapshot: 15 September 2026. See the data guide for source provenance.
+These summaries reproduce the figures; they do not verify historical deployed code or establish physical-robot performance.
+Experiment-specific code is available upon request. OpenAI Codex assisted with documentation and rendering from existing records.</footer>
+</main></body></html>

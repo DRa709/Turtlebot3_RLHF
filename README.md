@@ -1,323 +1,291 @@
-# Deep Reinforcement Learning & Preference Navigation Suite for TurtleBot3
+# TurtleBot3 RLHF
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![ROS 2 Foxy](https://img.shields.io/badge/ros2-foxy-orange.svg)](https://docs.ros.org/en/foxy/)
-[![Gazebo 11](https://img.shields.io/badge/gazebo-11-blue.svg)](http://gazebosim.org/)
-[![PyTorch](https://img.shields.io/badge/pytorch-1.12+-ee4c2c.svg)](https://pytorch.org/)
-[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](LICENSE)
+## Discrete-action navigation and human preference learning
 
-An empirical research and deployment framework for point-to-point mapless navigation of non-holonomic mobile robots (TurtleBot3 Burger/Waffle Pi). This repository contains the complete implementation, benchmark comparisons, and deployment toolchain across six deep reinforcement learning algorithms:
+TurtleBot3 RLHF brings together six reinforcement-learning algorithms, TurtleBot3
+simulation, human-preference reward modeling, and navigation evaluation in one
+research repository. The study asks how a robot can adapt to human preferences
+while retaining its ability to reach goals and navigate around obstacles.
 
-1. **DQN** (Deep Q-Network, Mnih et al., 2015)
-2. **Double DQN** (Van Hasselt et al., 2016)
-3. **Dueling Double DQN** (Wang et al., 2016)
-4. **Rainbow DQN** (Integrated multi-step returns & dueling streams, Hessel et al., 2018)
-5. **SD-SAC** (Semi-Discrete Soft Actor-Critic)
-6. **Discrete SAC** (Categorical Soft Actor-Critic with Bradley-Terry preference reward modeling & physical safety supervisor)
+[Package overview](#package-overview) · [Getting started](#getting-started)
+· [Problem formulation](#problem-formulation) · [Evaluation results](#navigation-benchmark)
+· [Results dashboard](benchmarks/index.html) · [Evaluation guide](docs/EVALUATION.md)
+· [Software citation](CITATION.cff)
 
-The suite covers simulation training in Gazebo 11, high-performance computing (HPC) orchestration via Apptainer/Singularity on Slurm clusters, and physical sim-to-real transfer with hardware safety watchdogs.
+## Package overview
 
----
+| Component | Contents |
+| --- | --- |
+| [Navigation source](turtlebot3_drl_nav/) | Discrete-action learners, observations, episode control, recording, and validation |
+| [Algorithm packages](packages/) | Six algorithm-specific configurations, ROS launch files, simulation scripts, and cluster runbooks |
+| [Preference learning](turtlebot3_drl_nav/algorithms/discrete_sac/preference_learning/) | Comparison datasets, preference loss, and neural reward models |
+| [Simulation](simulation/) | Gazebo worlds and ROS launch definitions |
+| [Cluster execution](cluster/) | Apptainer and Slurm resources |
+| [Robot tools](laptop/) and [command supervisor](pi/) | Offline actor checks, robot runner, and local command supervision |
+| [Evaluation](benchmarks/) | Result tables, five figures, a dashboard, and reporting tools |
 
-## Table of Contents
-- [POMDP Formulation](#pomdp-formulation)
-- [Algorithm Architectures](#algorithm-architectures)
-- [Empirical Benchmarks](#empirical-benchmarks)
-- [Reinforcement Learning from Human Feedback (RLHF)](#reinforcement-learning-from-human-feedback-rlhf)
-- [Physical Robot Deployment](#physical-robot-deployment)
-- [Repository Structure](#repository-structure)
-- [Installation & Quickstart](#installation--quickstart)
-- [Cluster Execution (Slurm / Apptainer)](#cluster-execution-slurm--apptainer)
-- [Testing & Verification](#testing--verification)
-- [Citation & Provenance](#citation--provenance)
+The algorithm packages organize DQN, Double DQN, Dueling Double DQN, Rainbow DQN,
+Discrete SAC, and SD-SAC within the same repository. Each has its own runtime
+configuration and experiment outputs; follow the selected package's runbook
+when training or evaluating a learner.
 
----
+## Getting started
 
-## POMDP Formulation
+Clone the complete repository:
 
-The navigation task is modeled as a Partially Observable Markov Decision Process defined by the tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$.
-
-### Observation Space $\mathcal{S} \subset \mathbb{R}^{41}$
-At each control timestep $t$, the agent receives a 41-dimensional normalized vector:
-
-$$\mathbf{s}_t = \big[ \mathbf{z}_{\text{lidar}}, \bar{d}_g, \bar{\theta}_g, \cos(\theta_g), \bar{v}, \bar{\omega} \big] \in [0, 1]^{36} \times [0, 1] \times [-1, 1] \times [-1, 1] \times [0, 1] \times [-1, 1]$$
-
-- **$\mathbf{z}_{\text{lidar}} \in [0, 1]^{36}$**: 36-beam range decimation derived from 360-degree 2D planar LiDAR ($10^\circ$ uniform angular resolution, spanning $[-180^\circ, +170^\circ]$ relative to the robot frame). Beam index 18 corresponds to $180^\circ$ (strictly forward heading). Raw distances $d \in [0.12, 3.50]\text{ m}$ are normalized:
-  $$\bar{d} = \text{clip}\left(\frac{d - d_{\min}}{d_{\max} - d_{\min}}, 0.0, 1.0\right)$$
-- **$\bar{d}_g \in [0, 1]$**: Euclidean distance to the Euclidean goal coordinate $(x_g, y_g)$, normalized against maximum stage distance $d_{\text{norm}} = 5.0\text{ m}$.
-- **$\bar{\theta}_g \in [-1, 1]$**: Angular error between the robot's current yaw $\psi$ and the goal bearing $\theta = \text{atan2}(y_g - y, x_g - x)$, normalized by $\pi$:
-  $$\bar{\theta}_g = \frac{\text{wrap}_{[-\pi, \pi]}(\theta - \psi)}{\pi}$$
-- **$\cos(\theta_g) \in [-1, 1]$**: Orientation cosine feature ensuring smooth directional gradients across the discontinuity at $\pm \pi$.
-- **$\bar{v} \in [0, 1]$**: Normalized linear velocity $\frac{v_t}{v_{\max}}$ with $v_{\max} = 0.22\text{ m/s}$.
-- **$\bar{\omega} \in [-1, 1]$**: Normalized angular velocity $\frac{\omega_t}{\omega_{\max}}$ with $\omega_{\max} = 2.0\text{ rad/s}$.
-
-### Action Space $\mathcal{A}$
-The control interface uses $|\mathcal{A}| = 5$ discrete velocity primitives calibrated to the kinematic limits of the TurtleBot3 Burger:
-
-| Action $a$ | Semantic Command | Linear Velocity $v$ (m/s) | Angular Velocity $\omega$ (rad/s) |
-| :---: | :--- | :---: | :---: |
-| **0** | Straight Forward | $0.22$ | $0.00$ |
-| **1** | Soft Left | $0.18$ | $+0.60$ |
-| **2** | Soft Right | $0.18$ | $-0.60$ |
-| **3** | Hard Left | $0.08$ | $+1.50$ |
-| **4** | Hard Right | $0.08$ | $-1.50$ |
-
-### Simulation-Time Clock Decoupling
-To eliminate numerical clock drift caused by the 10 Hz ROS 2 `/clock` topic under Gazebo ODE stepping, environment time is decoupled via the supremum of sensor arrival times:
-$$t_{\text{sim}} = \max(t_{\text{scan}}, t_{\text{odom}})$$
-A 500 Hz (2 ms) steady-time supervisor clock bounds action hold times strictly to $0.1200\text{ s}$, preventing transition hold violations during high-load cluster training.
-
----
-
-## Algorithm Architectures
-
-### 1. Value-Based Baseline Suite
-- **DQN**: 3-layer MLP ($41 \to 256 \to 256 \to 5$) minimizing temporal-difference error $\delta_t = r_t + \gamma \max_{a'} Q(s_{t+1}, a'; \theta^-) - Q(s_t, a_t; \theta)$ with periodic target network updates and $\epsilon$-greedy exploration.
-- **Double DQN**: Mitigates maximization bias by decoupling greedy action selection from target evaluation:
-  $$Y_t^{\text{DoubleQ}} = r_t + \gamma Q\left(s_{t+1}, \arg\max_{a'} Q(s_{t+1}, a'; \theta); \theta^-\right)$$
-- **Dueling Double DQN**: Decomposes the action-value function into state-value $V(s; \theta, \beta)$ and advantage streams $A(s, a; \theta, \alpha)$:
-  $$Q(s, a; \theta, \alpha, \beta) = V(s; \theta, \beta) + \left( A(s, a; \theta, \alpha) - \frac{1}{|\mathcal{A}|}\sum_{a'} A(s, a'; \theta, \alpha) \right)$$
-- **Rainbow DQN**: Integrates prioritized experience replay (PER), multi-step temporal difference returns ($n=3$), and dueling architecture streams.
-- **Semi-Discrete SAC (SD-SAC)**: Maps continuous Gaussian policy distributions $\mathcal{N}(\mu(s), \sigma(s))$ to discrete action bins, regularized with automatic entropy temperature tuning $\alpha$.
-
-### 2. Discrete Soft Actor-Critic (Discrete SAC)
-Unlike continuous SAC, Discrete SAC evaluates exact categorical entropy expectations over all $|\mathcal{A}| = 5$ actions without requiring Monte Carlo sampling or the reparameterization trick:
-
-$$\pi_\theta(a|s) = \frac{\exp(z_\theta(s)_a)}{\sum_{a'} \exp(z_\theta(s)_{a'})}$$
-
-#### Policy Objective:
-$$\mathcal{J}(\pi_\theta) = \mathbb{E}_{s \sim \mathcal{D}}\left[ \sum_{a \in \mathcal{A}} \pi_\theta(a|s) \left( \alpha \log \pi_\theta(a|s) - \min_{j=1,2} Q_{\phi_j}(s, a) \right) \right]$$
-
-#### Critic Objective:
-$$\mathcal{J}(Q_{\phi_j}) = \mathbb{E}_{(s, a, r, s') \sim \mathcal{D}}\left[ \left( Q_{\phi_j}(s, a) - y \right)^2 \right]$$
-$$y = r + \gamma \sum_{a' \in \mathcal{A}} \pi_\theta(a'|s') \left( \min_{k=1,2} Q_{\bar{\phi}_k}(s', a') - \alpha \log \pi_\theta(a'|s') \right)$$
-
-#### Automatic Entropy Temperature Tuning:
-$$\mathcal{J}(\alpha) = \mathbb{E}_{s \sim \mathcal{D}}\left[ \sum_{a \in \mathcal{A}} \pi_\theta(a|s) \left( -\alpha (\log \pi_\theta(a|s) - \bar{\mathcal{H}}) \right) \right]$$
-where target entropy is set to $\bar{\mathcal{H}} = -0.98 \times \log(1 / |\mathcal{A}|) \approx 1.577\text{ nats}$.
-
----
-
-## Empirical Benchmarks
-
-Extensive multi-seed benchmarking across 500,000 environment steps on Virginia Tech ARC HPC clusters (TinkerCliffs EPYC 7702 & Owl EPYC 9454 Genoa):
-
-| Algorithm | Success Rate (%) | Collision Rate (%) | Mean Time to Goal (s) | Sample Efficiency (Steps to 80% Success) |
-| :--- | :---: | :---: | :---: | :---: |
-| **DQN** | $74.2 \pm 3.8$ | $23.1 \pm 3.1$ | $18.4 \pm 2.1$ | $320,000$ |
-| **Double DQN** | $81.5 \pm 2.9$ | $16.2 \pm 2.4$ | $16.8 \pm 1.8$ | $260,000$ |
-| **Dueling Double DQN** | $85.3 \pm 2.4$ | $12.8 \pm 2.0$ | $15.2 \pm 1.5$ | $210,000$ |
-| **Rainbow DQN** | $88.7 \pm 2.1$ | $9.8 \pm 1.7$ | $14.6 \pm 1.3$ | $175,000$ |
-| **SD-SAC** | $83.4 \pm 3.0$ | $14.1 \pm 2.5$ | $16.1 \pm 1.7$ | $240,000$ |
-| **Discrete SAC (Ours)** | $\mathbf{94.6 \pm 1.4}$ | $\mathbf{4.8 \pm 1.1}$ | $\mathbf{12.9 \pm 1.1}$ | $\mathbf{115,000}$ |
-
-Comparative learning curves and sample efficiency distributions are generated at 300 DPI:
-
-<p align="center">
-  <img src="benchmarks/figures/comparative_learning_curves.png" width="48%" alt="Comparative Learning Curves" />
-  <img src="benchmarks/figures/comparative_sample_efficiency.png" width="48%" alt="Sample Efficiency Comparison" />
-</p>
-
----
-
-## Reinforcement Learning from Human Feedback (RLHF)
-
-The Discrete SAC pipeline supports preference-guided policy optimization using learned reward models trained on pairwise trajectory segments $\sigma_1, \sigma_2$:
-
-```
-        Pairwise Trajectories (sigma_1, sigma_2)
-                          |
-                          v
-         Ensemble Reward Model r_psi(s, a)
-                          |
-                          v
-     Bradley-Terry Cross-Entropy Preference Loss
-                          |
-                          v
-  Policy Fine-Tuning under Learned Reward Objective
-```
-
-### Bradley-Terry Preference Formulation
-Under the Bradley-Terry model, the probability that human or synthetic oracle evaluators prefer trajectory segment $\sigma_1$ over $\sigma_2$ is given by:
-
-$$P(\sigma_1 \succ \sigma_2) = \frac{\exp\left(\sum_{t=1}^{|\sigma_1|} r_\psi(s_t^{(1)}, a_t^{(1)})\right)}{\exp\left(\sum_{t=1}^{|\sigma_1|} r_\psi(s_t^{(1)}, a_t^{(1)})\right) + \exp\left(\sum_{t=1}^{|\sigma_2|} r_\psi(s_t^{(2)}, a_t^{(2)})\right)}$$
-
-The reward ensemble minimizes the negative log-likelihood:
-$$\mathcal{L}(\psi) = -\sum_{(\sigma_1, \sigma_2, y)} \left[ y \log P(\sigma_1 \succ \sigma_2) + (1 - y) \log P(\sigma_2 \succ \sigma_1) \right]$$
-
-Multi-head ensemble uncertainty estimation $\sigma_r(s, a)$ enables out-of-distribution detection, suppressing reward hacking near obstacles.
-
----
-
-## Physical Robot Deployment
-
-The framework includes a hardware-verified sim-to-real architecture separating host workstation policy inference from on-robot safety supervision:
-
-```
-+-------------------------------------------------------------+
-|                      Host Laptop / PC                       |
-|  - ROS 2 Robot Runner Node                                  |
-|  - 36-Beam LiDAR Resampling (Index 18 = Forward)            |
-|  - 41-dim Observation Normalization                         |
-|  - PyTorch Discrete SAC Policy Inference                    |
-+-------------------------------------------------------------+
-                              |
-                     TCP / ROS 2 Transport
-                              |
-+-------------------------------------------------------------+
-|                   Raspberry Pi 4 (Robot)                    |
-|  - Local Command Supervisor Node                            |
-|  - Hardware Safety Watchdogs:                               |
-|      * Command Expiration: Halts if latency > 0.20 s        |
-|      * Proximity Braking: Emergency stop if range < 0.18 m  |
-|      * Stale Sensor Watchdog: Disarms on odom/scan drop     |
-|      * Velocity Rate Limiter: Motor limit compliance        |
-|  - OpenCR Microcontroller Serial Interface (/cmd_vel)       |
-+-------------------------------------------------------------+
-```
-
----
-
-## Repository Structure
-
-```
-Turtlebot3_RLHF/
-├── README.md                      # Academic documentation & specifications
-├── LICENSE                        # BSD 3-Clause License
-├── .gitignore                     # Git hygiene (filters SIF containers, logs, temp files)
-├── requirements.txt               # PyTorch, NumPy, Pandas, Matplotlib dependencies
-├── setup.py                       # Python package installation
-├── package.xml                    # ROS 2 ament_python manifest
-│
-├── turtlebot3_drl_nav/            # Unified Python package
-│   ├── common/                    # Shared environment, kinematics, and telemetry modules
-│   │   ├── drl_environment_node.py
-│   │   ├── episode_engine.py
-│   │   ├── state.py
-│   │   ├── geometry.py
-│   │   ├── initialization.py
-│   │   ├── obstacle_schedule.py
-│   │   └── validator.py
-│   │
-│   └── algorithms/                # Individual RL algorithm implementations
-│       ├── dqn/
-│       ├── double_dqn/
-│       ├── dueling_double_dqn/
-│       ├── rainbow_dqn/
-│       ├── sdsac/
-│       └── discrete_sac/
-│           ├── preference_learning/ # RLHF reward models & Bradley-Terry loss
-│           └── hardware/            # Physical deployment supervisor & runner
-│
-├── simulation/                    # Gazebo simulation assets & launch files
-│   ├── worlds/phase1_mixed.world
-│   └── launch/
-│
-├── cluster/                       # ARC HPC execution recipes
-│   ├── apptainer/turtlebot_drl.def
-│   └── slurm/study_array.sbatch
-│
-├── benchmarks/                    # 300 DPI publication plotting engine & interactive dashboard
-│   ├── generate_benchmark_suite.py
-│   ├── index.html
-│   └── figures/
-│
-├── packages/                      # Standalone, cryptographically sealed ROS 2 packages
-│   ├── TurtleBot_DQN_Random/
-│   ├── TurtleBot_DoubleDQN_Random/
-│   ├── TurtleBot_DuelingDoubleDQN_Random/
-│   ├── TurtleBot_RainbowDQN_Random/
-│   ├── TurtleBot_SDSAC_Random/
-│   └── TurtleBot_DiscreteSAC_Random/
-│
-├── pi/                            # Raspberry Pi safety supervisor
-├── laptop/                        # Host workstation robot runner
-└── tests/                         # Unit and contract tests
-```
-
----
-
-## Installation & Quickstart
-
-### Prerequisites
-- Ubuntu 20.04 LTS (or Ubuntu 22.04)
-- ROS 2 Foxy Fitzroy (or Humble Hawksbill)
-- Python 3.8+ with PyTorch 1.12+
-
-### 1. Clone and Install
 ```bash
 git clone https://github.com/DRa709/Turtlebot3_RLHF.git
 cd Turtlebot3_RLHF
-pip install -r requirements.txt
-pip install -e .
 ```
 
-### 2. ROS 2 Workspace Colcon Build
+For result analysis, use the lightweight [figure-rebuilding workflow](#rebuild-the-reported-figures).
+For navigation experiments, select an algorithm package below and follow its
+environment and execution instructions. Those runbooks specify ROS 2 Foxy,
+Gazebo 11, container setup, calibration, and training/evaluation commands.
+Use the package-specific workspace described there because the algorithm packages
+share the ROS package name `turtlebot3_drl_nav`.
+
+| Algorithm | Package guide |
+| --- | --- |
+| DQN | [DQN setup and execution](packages/TurtleBot_DQN_Random/README.md) |
+| Double DQN | [Double DQN setup and execution](packages/TurtleBot_DoubleDQN_Random/README.md) |
+| Dueling Double DQN | [Dueling Double DQN setup and execution](packages/TurtleBot_DuelingDoubleDQN_Random/README.md) |
+| Rainbow DQN | [Rainbow DQN setup and execution](packages/TurtleBot_RainbowDQN_Random/README.md) |
+| Discrete SAC | [Discrete SAC setup and execution](packages/TurtleBot_DiscreteSAC_Random/README.md) |
+| SD-SAC | [SD-SAC setup and execution](packages/TurtleBot_SDSAC_Random/README.md) |
+
+The root Python source can be installed with `python -m pip install -e .` in a
+suitable environment. ROS/Gazebo deployment also requires the selected package's
+dependencies and launch setup. See the [validation scope](docs/EVALUATION.md#validation-scope)
+for the checks performed on this repository.
+
+## Problem formulation
+
+We study a partially observed navigation process with latent state $x_t$, observations
+$o_t$, dynamics $P(x_{t+1}\mid x_t,a_t)$, observation mapping $O(o_t\mid x_t)$,
+initial-state distribution $\rho_0$, reward $r$, and discount $\gamma$.
+A reactive categorical policy $\pi(a\mid o)$ selects one of five fixed commands.
+The observation vector is not assumed to be a complete Markov state.
+
+Given a pretrained policy $\pi_0$ and a total budget $N$ of human comparisons,
+fit a preference reward model using the usable fitting pairs, select its checkpoint
+with validation data, and continue the policy for a fixed additional action budget $K$.
+Annotation count $N$ and policy-training actions $K$ are different resources.
+
+The intended evaluation objective is to improve independent human preference while
+retaining goal-reaching ability and limiting contact probability on matched scenarios:
+
+$$\max_{\pi\in\Pi_{\mathrm{disc}}} W_H(\pi,\pi_0)
+\quad\text{subject to}\quad
+p_G(\pi)\ge p_G(\pi_0)-\delta_G,\qquad p_C(\pi)\le\epsilon_C.$$
+
+$W_H$ is a future blinded human-comparison score (win 1, tie 0.5, loss 0 among
+judgeable pairs). $p_G$ and $p_C$ are goal and contact probabilities under a fixed
+evaluation scenario distribution. This is a **desired evaluation objective**;
+the tested SAC updates do not enforce these constraints. Thresholds were not
+preregistered, and fresh human preference over the adapted policies was not measured.
+Safety-stop rate and obstacle clearance are companion measures because stopping
+changes exposure to subsequent contacts.
+
+### Observations and discrete actions
+
+The [implementation](turtlebot3_drl_nav/common/state.py) constructs 41 features:
+36 LiDAR ranges divided by the configured LiDAR maximum and clipped to $[0,1]$,
+clipped normalized goal distance, sine and cosine of heading error, and two
+normalized **previous command** components. Canonical LiDAR bearings run from
+$-180^\circ$ to $+170^\circ$ in $10^\circ$ increments; index 18 is forward at
+$0^\circ$. Normalization bounds come from the active configuration.
+
+| Action | Command | Linear velocity (m/s) | Angular velocity (rad/s) |
+| --- | --- | ---: | ---: |
+| 0 | Forward | 0.15 | 0.0 |
+| 1 | Forward left | 0.12 | +0.6 |
+| 2 | Forward right | 0.12 | -0.6 |
+| 3 | Rotate left in place | 0.00 | +1.0 |
+| 4 | Rotate right in place | 0.00 | -1.0 |
+
+These are the current `ActionMap` defaults and the study's reference commands.
+The policy selects a discrete action ID; it does not generate continuous-valued
+commands. Route smoothness would require a separate measurement. Matching each
+evaluated deployment to this source remains part of the
+[reproducibility scope](docs/EVALUATION.md#reproducibility-scope).
+
+Terminal outcomes are **physical contact**, **safety stop**, **goal reached**, or
+**time-limit truncation**, with contact > stop > goal precedence in the reward
+implementation. Default thresholds are 0.16 m for a proximity stop and 0.20 m
+for goal tolerance. A stop is not a physical collision. Historical and later
+continuation reset/clearance conventions must be checked separately.
+
+## Algorithms
+
+The benchmark evaluates DQN, Double DQN, Dueling Double DQN, Rainbow DQN,
+Discrete SAC, and a categorical adaptation of SD-SAC. Names identify evaluated
+implementations; the study does not claim a new SAC update or universal rankings.
+
+- [Discrete SAC](turtlebot3_drl_nav/algorithms/discrete_sac/discretesac.py) uses a
+  categorical actor, two action-value critics, and exact sums over five actions.
+  Its configuration fixes entropy temperature at `alpha=0.2`.
+- [SD-SAC](turtlebot3_drl_nav/algorithms/sdsac/sdsac.py) is a controlled adaptation
+  of Zhou et al.'s method with double-average Q learning, an entropy-change penalty,
+  and Q clipping. It does not bin a continuous Gaussian policy.
+- Discrete SAC follows [Christodoulou (2019)](https://arxiv.org/abs/1910.07207);
+  SD-SAC follows [Zhou et al. (2024)](https://arxiv.org/abs/2209.10081).
+  See the source headers and configuration files for implementation details.
+
+## Navigation benchmark
+
+The final Discrete SAC benchmark is **97 goals in 100 trials**. Double DQN and
+Rainbow also reach 97%. This evaluation precedes preference-based continuation.
+
+Each of the six methods has five trained learners (seeds 101, 202, 303, 404, 505),
+each trained for 500,000 actions. The final primary evaluation contains 20 E1
+episodes per learner, or **100 trials per method**. The primary channel is greedy
+for the DQN family and deterministic for the SAC family.
+
+<!-- BEGIN AUDITED_BENCHMARK -->
+| Method | Goals | Success (%) | Learner SD (pp) | Safety stops | Contacts | Timeouts |
+| --- | --- | --- | --- | --- | --- | --- |
+| DQN | 90/100 | 90 | 9.35 | 9 | 0 | 1 |
+| Double DQN | 97/100 | 97 | 2.74 | 2 | 0 | 1 |
+| Dueling Double | 86/100 | 86 | 6.52 | 13 | 0 | 1 |
+| Rainbow | 97/100 | 97 | 2.74 | 3 | 0 | 0 |
+| Discrete SAC | 97/100 | 97 | 6.71 | 3 | 0 | 0 |
+| SD-SAC | 95/100 | 95 | 8.66 | 4 | 0 | 1 |
+<!-- END AUDITED_BENCHMARK -->
+
+The final Discrete SAC counts are **20 + 20 + 17 + 20 + 20 = 97 goals**, with three
+safety stops, no timeouts, and no recorded physical contacts. Its five learner
+rates are 100%, 100%, 85%, 100%, 100% (sample SD 6.71 percentage points).
+The 97% total is an empirical rate on this panel, not a guarantee for new scenarios
+or evidence that preferences caused the performance. Double DQN and Rainbow tie
+at 97%; the results do not establish unique Discrete SAC superiority.
+
+![Scheduled benchmark and final learner rates](benchmarks/figures/benchmark.png)
+
+Curves use 20 scheduled checkpoints at 25,000-action intervals. Requested cases
+match across methods within a checkpoint/episode block but change between checkpoints.
+Across all checkpoints there are 12,000 primary evaluations; stochastic evaluation
+of the two SAC methods adds 4,000. These additional episodes are not the denominator
+of the final 97% result. Lines connect recorded checkpoint means; final dots show
+all five learners and black marks show their means.
+
+![Exclusive final benchmark outcomes](benchmarks/figures/outcomes.png)
+
+Zero recorded contacts must be interpreted alongside the active safety-stop
+mechanism. It does not show that the policy would avoid contacts without that mechanism.
+
+## Preference-based continuation: observed outcomes
+
+Two selected pretrained Discrete SAC actors (seeds 101 and 202) were continued
+for 10,000 additional actions. Both conditions transferred **only the actor**,
+with fresh critics, optimizers, and replay. One used the original reward; the
+other used a fixed reward learned from 200 collected human comparisons.
+
+The E2 development panel pools 20 scenarios, two learners, and two action-selection
+modes: 80 trials per checkpoint. It differs from the E1 benchmark, so its 97.5%
+baseline must not be presented as an improvement over the E1 97% result.
+
+<!-- BEGIN AUDITED_CONTINUATION -->
+| Condition | Goals | Success (%) | Safety stops | Contacts | Timeouts |
+| --- | --- | --- | --- | --- | --- |
+| Frozen baseline | 78/80 | 97.5 | 2 | 0 | 0 |
+| Original reward, +10k actions | 6/80 | 7.5 | 68 | 0 | 6 |
+| Preference reward (200), +10k actions | 1/80 | 1.25 | 76 | 0 | 3 |
+<!-- END AUDITED_CONTINUATION -->
+
+![Continuation goal rates and safety stops](benchmarks/figures/retention.png)
+
+Both continuations lose goal-reaching ability. At 10,000 additional actions,
+preference continuation has 1.25% goal success versus 7.5% under the original
+reward. The original-reward decline means this experiment does not isolate the
+preference reward as the sole cause. Shading shows the range of two learner rates,
+not a confidence interval. Uneven action counts are displayed as checkpoint categories.
+
+![Clearance and categorical-policy change](benchmarks/figures/diagnostics.png)
+
+Mean episode-minimum clearance falls from 0.379 m to 0.176 m with original reward
+and 0.155 m with preference reward. Across the 1,144 checkpoint evaluations
+(E2 plus the small E3 panel), there are zero recorded contacts. Increased stops and
+reduced clearance do not establish collision reduction or improved obstacle avoidance.
+KL curves describe policy change on fixed observations; they do not establish its cause.
+
+## Human-comparison budgets: reward prediction
+
+<!-- BEGIN AUDITED_COMPARISONS -->
+| Collected comparisons | Fitting pairs | Correct / strict pairs | Accuracy (%) | Pair cross-entropy |
+| --- | --- | --- | --- | --- |
+| 20 | 15 | 11/22 | 50.00 | 1.216 |
+| 50 | 36 | 16/22 | 72.73 | 0.948 |
+| 100 | 75 | 17/22 | 77.27 | 0.830 |
+| 150 | 109 | 17/22 | 77.27 | 0.698 |
+| 200 | 143 | 19/22 | 86.36 | 0.727 |
+<!-- END AUDITED_COMPARISONS -->
+
+![Reward prediction at five human-comparison budgets](benchmarks/figures/comparison_budget.png)
+
+Accuracy uses the **same 22 strict validation pairs**; cross-entropy uses all 37
+pairs including 15 ties. The validation set was reused for model selection, and
+only one reward-model seed is available. These are descriptive validation results,
+not independent-test estimates or an isolated causal effect of annotation count.
+Total comparison budgets include fitting, validation, and unjudgeable responses.
+
+Strict accuracy increases from 50.00% to 86.36%, with a plateau from 100 to 150.
+Cross-entropy is lowest at 150 comparisons and worsens at 200. **Navigation was
+evaluated only at 200 comparisons.** There are no measured navigation success
+rates at 20, 50, 100, or 150 to plot as a budget-performance curve.
+
+The next hypothesis is that, after establishing stable continuation, more
+informative comparisons can improve goal completion and obstacle avoidance while
+retaining baseline competence. Test separate copies of the same baseline at each
+budget with equal additional training actions, matched scenarios, separate final
+tests, and repeated policy/reward-model seeds. No perception or obstacle-recognition
+improvement has yet been established.
+
+## Rebuild the reported figures
+
+Python 3.8+ with NumPy, pandas, and Matplotlib is sufficient for the report:
+
 ```bash
-source /opt/ros/foxy/setup.bash
-colcon build --symlink-install
-source install/setup.bash
+python -m pip install numpy pandas matplotlib
+python benchmarks/build_audited_report.py
+python -m pip install pytest
+python -m pytest tests/test_benchmark_reporting.py tests/test_pomdp_contracts.py tests/test_geometry.py -q
 ```
 
-### 3. Run Policy Offline Validation
-Verify policy forward passes and observation tensor dimensions:
-```bash
-python laptop/check_actor_offline.py --synthetic
-```
+This rebuilds the tables, dashboard, and plots from the included result summaries.
+It performs consistency and provenance checks; it does not train a policy or rerun
+Gazebo. The [data README](benchmarks/data/audited/README.md) specifies which checks
+are reproducible from aggregates and which source checks used episode-level records.
 
----
-
-## Cluster Execution (Slurm / Apptainer)
-
-The study arrays are containerized using Apptainer (formerly Singularity) to ensure bit-exact reproducibility across HPC clusters:
+`generate_benchmark_suite.py` is a separate **training-episode** exploration tool:
 
 ```bash
-# 1. Build SIF container on compute node
-apptainer build cluster/apptainer/dev_S0.sif cluster/apptainer/turtlebot_drl.def
-
-# 2. Submit multi-seed array via Slurm
-sbatch --account=rl --partition=normal_q cluster/slurm/study_array.sbatch
+python benchmarks/generate_benchmark_suite.py --input-dirs /path/to/recorded/runs --output-dir /path/to/training-report
+python benchmarks/generate_benchmark_suite.py --demo --output-dir /path/to/preview
 ```
 
----
+Synthetic previews are isolated under `synthetic_demo`, visibly labeled, and never
+mixed with real input directories. Rolling training success and first crossings
+are not final held-out success or the paper's sustained-success criterion.
 
-## Testing & Verification
+## Availability and reproducibility
 
-Run the test suite across all POMDP contracts, network forward passes, coordinate transformations, and hardware safety supervisors:
+The navigation package, preference-learning components, simulation assets,
+evaluation summaries, and figure-generation tools are provided in this repository.
+**Experiment-specific code is available upon request.** The included summaries
+reproduce the reported figures. Exact reproduction of the recorded experiments
+also requires their checkpoints, configurations, containers, and deployment records;
+equivalence to every source component in this repository has not been established.
+See the [evaluation guide](docs/EVALUATION.md) for provenance, completed checks,
+and the scope of simulation and physical-robot validation.
 
-```bash
-python -m pytest tests/ -v
-```
+## Authors and citation
 
-Expected output:
-```
-tests/test_geometry.py::test_angle_wrapping PASSED                       [  5%]
-tests/test_geometry.py::test_lidar_resampling_index_alignment PASSED     [ 11%]
-tests/test_networks.py::test_preference_reward_model_forward PASSED      [ 16%]
-tests/test_networks.py::test_bradley_terry_loss PASSED                   [ 22%]
-tests/test_networks.py::test_discrete_action_dimensions PASSED           [ 27%]
-tests/test_offline_policy.py::test_discretesac_config_validation PASSED  [ 33%]
-tests/test_offline_policy.py::test_categorical_actor_dimensions_and_distribution PASSED [ 38%]
-tests/test_pomdp_contracts.py::test_observation_vector_dimension_and_bounds PASSED [ 44%]
-tests/test_pomdp_contracts.py::test_discrete_action_velocity_lookup PASSED [ 50%]
-tests/test_runner.py::test_lidar_36_resampling PASSED                    [ 55%]
-tests/test_runner.py::test_observation_normalization PASSED              [ 61%]
-tests/test_runner.py::test_reward_computation PASSED                     [ 66%]
-tests/test_runner.py::test_csv_logging_schema PASSED                     [ 72%]
-tests/test_supervisor.py::test_disarmed_suppression PASSED               [ 77%]
-tests/test_supervisor.py::test_command_timeout PASSED                    [ 83%]
-tests/test_supervisor.py::test_proximity_braking PASSED                  [ 88%]
-tests/test_supervisor.py::test_stale_sensor_watchdog PASSED              [ 94%]
-tests/test_supervisor.py::test_speed_clamping PASSED                     [100%]
+- **Asha Barua** — [@ashabarua](https://github.com/ashabarua), ashabarua@vt.edu.
+- **Dhruv Shankar Ray** — [@DRa709](https://github.com/DRa709), package maintainer.
 
-============================= 18 passed in 1.33s ==============================
-```
-
----
-
-## Citation & Provenance
-
-If you use this codebase or benchmark suite in your research, please cite:
+Use the following citation for the software. Research papers have their own
+author lists and citation records.
 
 ```bibtex
 @software{baruaandray2026turtlebot3rlhf,
@@ -325,7 +293,12 @@ If you use this codebase or benchmark suite in your research, please cite:
   title = {Deep Reinforcement Learning & Preference Navigation Suite for TurtleBot3},
   year = {2026},
   publisher = {GitHub},
-  journal = {GitHub repository},
   howpublished = {\url{https://github.com/DRa709/Turtlebot3_RLHF}}
 }
 ```
+
+When citing a specific result, identify its evaluation cohort and the repository
+commit/release containing the reported tables. See [CITATION.cff](CITATION.cff).
+
+OpenAI Codex assisted with this documentation, reporting code, and figure rendering
+from existing experiment records. No missing measurements were generated.

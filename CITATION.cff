@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the repository using this metadata."
+type: software
+title: "Deep Reinforcement Learning & Preference Navigation Suite for TurtleBot3"
+authors:
+  - family-names: "Barua"
+    given-names: "Asha"
+    email: "ashabarua@vt.edu"
+  - family-names: "Ray"
+    given-names: "Dhruv Shankar"
+    email: "dhruvshankar@vt.edu"
+repository-code: "https://github.com/DRa709/Turtlebot3_RLHF"
+url: "https://github.com/DRa709/Turtlebot3_RLHF"
+license: BSD-3-Clause

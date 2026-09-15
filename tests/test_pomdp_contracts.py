@@ -1,37 +1,37 @@
+"""Check the implementation, rather than a copied observation/action table."""
+import math
 import pytest
-import numpy as np
+from turtlebot3_drl_nav.common.state import (
+    ActionMap, RewardConfig, build_observation, compute_reward,
+)
+
 
 def test_observation_vector_dimension_and_bounds():
-    synthetic_scan = np.random.uniform(0.12, 3.5, 36)
-    normalized_scan = np.clip((synthetic_scan - 0.12) / (3.5 - 0.12), 0.0, 1.0)
-    
-    target_dist = 1.85
-    norm_dist = np.clip(target_dist / 5.0, 0.0, 1.0)
-    
-    heading_error = -0.45
-    norm_heading = heading_error / np.pi
-    
-    v_lin = 0.15
-    v_ang = 0.5
-    
-    obs = np.concatenate([
-        normalized_scan,
-        [norm_dist, norm_heading, np.cos(heading_error), v_lin / 0.22, v_ang / 2.0]
-    ])
-    
-    assert len(obs) == 41
-    assert np.all(obs[:36] >= 0.0) and np.all(obs[:36] <= 1.0)
-    assert -1.0 <= obs[37] <= 1.0
+    observation = build_observation(
+        [1.75] * 36, distance=2.5, heading_error=-math.pi / 2,
+        previous_linear=0.12, previous_angular=-0.6,
+        lidar_max=3.5, distance_max=5.0, velocity_max=0.15, angular_max=1.0,
+    )
+    assert len(observation) == 41
+    assert observation[:36] == pytest.approx([0.5] * 36)
+    assert observation[36:] == pytest.approx([0.5, -1.0, 0.0, 0.8, -0.6])
+
 
 def test_discrete_action_velocity_lookup():
-    action_table = {
-        0: (0.22, 0.0),
-        1: (0.18, 0.6),
-        2: (0.18, -0.6),
-        3: (0.08, 1.5),
-        4: (0.08, -1.5)
-    }
-    
-    for action_idx, (v, w) in action_table.items():
-        assert 0.0 <= v <= 0.22, f"Linear velocity {v} violates Burger motor limits"
-        assert -2.0 <= w <= 2.0, f"Angular velocity {w} violates Burger motor limits"
+    actions = ActionMap()
+    assert actions.commands() == (
+        (0.15, 0.0), (0.12, 0.6), (0.12, -0.6), (0.0, 1.0), (0.0, -1.0),
+    )
+    assert actions.v_max == 0.15
+    assert actions.omega_max == 1.0
+
+
+@pytest.mark.parametrize('contact,clearance,distance,event', [
+    (True, 0.1, 0.1, 'collision'),
+    (False, 0.1, 0.1, 'safety'),
+    (False, 1.0, 0.1, 'goal'),
+])
+def test_contact_stop_and_goal_remain_distinct(contact, clearance, distance, event):
+    result = compute_reward(1.0, distance, clearance, 0.0, contact, RewardConfig())
+    assert result.event == event
+    assert sum([result.collision, result.safety, result.goal]) == 1

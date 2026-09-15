@@ -1,23 +1,21 @@
+"""Geometry checks against the actual sensor transformation functions."""
+import math
 import pytest
-import numpy as np
+from turtlebot3_drl_nav.common.state import normalize_angle, sample_lidar_nearest
 
-def wrap_to_pi(angle: float) -> float:
-    return (angle + np.pi) % (2.0 * np.pi) - np.pi
-
-def decimate_lidar_360_to_36(raw_ranges: np.ndarray) -> np.ndarray:
-    assert len(raw_ranges) == 360
-    indices = np.arange(0, 360, 10)
-    return raw_ranges[indices]
 
 def test_angle_wrapping():
-    assert np.isclose(wrap_to_pi(3.0 * np.pi), np.pi) or np.isclose(wrap_to_pi(3.0 * np.pi), -np.pi)
-    assert np.isclose(wrap_to_pi(-np.pi / 2), -np.pi / 2)
-    assert np.isclose(wrap_to_pi(2.5 * np.pi), 0.5 * np.pi)
+    assert abs(normalize_angle(3 * math.pi)) == pytest.approx(math.pi)
+    assert normalize_angle(-math.pi / 2) == pytest.approx(-math.pi / 2)
+    assert normalize_angle(2.5 * math.pi) == pytest.approx(0.5 * math.pi)
+
 
 def test_lidar_resampling_index_alignment():
-    raw_scan = np.ones(360) * 2.0
-    raw_scan[180] = 0.5
-    
-    sampled = decimate_lidar_360_to_36(raw_scan)
+    # Native scan starts at zero; canonical sample 18 must address that beam.
+    ranges = [2.0] * 360
+    ranges[0] = 0.5
+    ranges[180] = 1.25
+    sampled = sample_lidar_nearest(ranges, 0.0, math.pi / 180, 0.12, 3.5)
     assert len(sampled) == 36
-    assert sampled[18] == 0.5
+    assert sampled[18] == 0.5  # Forward: 0 degrees.
+    assert sampled[0] == 1.25  # Rear: -180 degrees.

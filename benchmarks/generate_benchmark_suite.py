@@ -45,6 +45,20 @@ import matplotlib
 matplotlib.use('Agg')  # Headless mode for cluster execution (ARC / Slurm)
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+if __package__:
+    from .outcomes import episode_outcomes
+else:
+    from outcomes import episode_outcomes
+
+DEMO_MODE = False
+
+
+def mark_figure(figure):
+    label = ('SYNTHETIC DEMO - NOT EXPERIMENTAL RESULTS' if DEMO_MODE else
+             'Training-episode statistics; not held-out policy evaluation')
+    figure.text(0.5, 0.005, label, ha='center', va='bottom', fontsize=9,
+                color='#a00000' if DEMO_MODE else '#333333')
+
 
 class NumpyEncoder(json.JSONEncoder):
     """Custom JSON encoder for NumPy scalars and arrays."""
@@ -102,7 +116,7 @@ ALGORITHM_CONFIGS = {
     },
     'sdsac': {
         'name': 'SDSAC',
-        'full_name': 'State-Dependent Soft Actor-Critic',
+        'full_name': 'SD-SAC (categorical adaptation)',
         'color': '#8c564b',       # Sienna Brown
         'linestyle': '-',
         'type': 'actor_critic'
@@ -286,7 +300,7 @@ def load_episodes_dataframe(csv_path: str) -> Optional[pd.DataFrame]:
         elif 'length' in df.columns:
             df['cum_steps'] = df['length'].cumsum()
         else:
-            df['cum_steps'] = np.arange(len(df)) * 250
+            raise ValueError('Missing recorded step counts; refusing to invent a training axis')
             
         # Standardize return column
         if 'return' not in df.columns:
@@ -295,26 +309,24 @@ def load_episodes_dataframe(csv_path: str) -> Optional[pd.DataFrame]:
             elif 'total_reward' in df.columns:
                 df['return'] = df['total_reward']
             else:
-                df['return'] = 0.0
+                df['return'] = np.nan  # Unrecorded reward is not a zero return.
                 
-        # Standardize outcome
-        if 'outcome' not in df.columns:
-            df['outcome'] = 'unknown'
-        else:
-            df['outcome'] = df['outcome'].astype(str).str.lower()
+        # Keep physical contacts distinct from proximity-triggered safety stops.
+        df['outcome'] = episode_outcomes(df)
             
         # Standardize length
         if 'length' not in df.columns:
             if 'steps' in df.columns:
                 df['length'] = df['steps']
             else:
-                df['length'] = 200
+                df['length'] = np.nan  # Missing episode length remains missing.
                 
         # Rolling averages (window = 50 episodes)
         df['rolling_return'] = df['return'].rolling(50, min_periods=5).mean()
         df['rolling_success'] = (df['outcome'] == 'goal').rolling(50, min_periods=5).mean() * 100.0
         df['rolling_length'] = df['length'].rolling(50, min_periods=5).mean()
-        df['rolling_collision'] = (df['outcome'] == 'safety').rolling(50, min_periods=5).mean() * 100.0
+        df['rolling_collision'] = (df['outcome'] == 'collision').rolling(50, min_periods=5).mean() * 100.0
+        df['rolling_safety'] = (df['outcome'] == 'safety').rolling(50, min_periods=5).mean() * 100.0
         
         return df
     except Exception as e:
@@ -447,13 +459,14 @@ def plot_individual_algorithm_figures(
     # Panel D: Outcome Bar Chart
     overall_sr = [(df['outcome'] == 'goal').mean() * 100.0 for df in seed_dfs.values()]
     recent_sr = [(df['outcome'].tail(100) == 'goal').mean() * 100.0 for df in seed_dfs.values()]
-    collision_sr = [(df['outcome'] == 'safety').mean() * 100.0 for df in seed_dfs.values()]
+    collision_sr = [(df['outcome'] == 'collision').mean() * 100.0 for df in seed_dfs.values()]
+    safety_sr = [(df['outcome'] == 'safety').mean() * 100.0 for df in seed_dfs.values()]
     timeout_sr = [(df['outcome'] == 'timeout').mean() * 100.0 for df in seed_dfs.values()]
     
-    cats = ['Lifetime Goal %', 'Recent 100-Ep Goal %', 'Safety/Collision %', 'Timeout %']
-    cat_means = [np.mean(overall_sr), np.mean(recent_sr), np.mean(collision_sr), np.mean(timeout_sr)]
-    cat_stds = [np.std(overall_sr), np.std(recent_sr), np.std(collision_sr), np.std(timeout_sr)]
-    bar_colors = ['#2980b9', '#27ae60', '#c0392b', '#f39c12']
+    cats = ['Lifetime Goal %', 'Recent Goal %', 'Safety Stop %', 'Contact %', 'Timeout %']
+    cat_means = [np.mean(overall_sr), np.mean(recent_sr), np.mean(safety_sr), np.mean(collision_sr), np.mean(timeout_sr)]
+    cat_stds = [np.std(overall_sr), np.std(recent_sr), np.std(safety_sr), np.std(collision_sr), np.std(timeout_sr)]
+    bar_colors = ['#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#f39c12']
     
     bars = axes1[1, 1].bar(cats, cat_means, yerr=cat_stds, capsize=6, color=bar_colors, alpha=0.85, edgecolor='black', width=0.55)
     axes1[1, 1].set_title('D. Empirical Outcome Distributions (Fleet Mean ± Std)', fontsize=12, fontweight='bold')
@@ -470,6 +483,7 @@ def plot_individual_algorithm_figures(
     plt.tight_layout(rect=[0, 0.02, 1, 0.96])
     
     fig1_path = os.path.join(algo_out_dir, f"{algo_key}_benchmark_curves.png")
+    mark_figure(fig1)
     fig1.savefig(fig1_path, dpi=dpi)
     plt.close(fig1)
     
@@ -571,6 +585,7 @@ def plot_individual_algorithm_figures(
         fig2.suptitle(f'{algo_full_name} Optimization & Value Function Diagnostics', fontsize=14, fontweight='bold', y=0.99)
         plt.tight_layout(rect=[0, 0.02, 1, 0.96])
         fig2_path = os.path.join(algo_out_dir, f"{algo_key}_training_diagnostics.png")
+        mark_figure(fig2)
         fig2.savefig(fig2_path, dpi=dpi)
         plt.close(fig2)
     else:
@@ -581,6 +596,7 @@ def plot_individual_algorithm_figures(
     # METRICS SUMMARY (JSON & MARKDOWN)
     # --------------------------------------------------------------------------
     metrics = {
+        'data_source': 'synthetic_demo' if DEMO_MODE else 'recorded_training_episodes',
         'algorithm': algo_name,
         'algorithm_full': algo_full_name,
         'num_seeds': len(seed_dfs),
@@ -601,7 +617,8 @@ def plot_individual_algorithm_figures(
             'episodes': int(len(df)),
             'max_steps': int(df['cum_steps'].max()),
             'goals': int((df['outcome'] == 'goal').sum()),
-            'collisions': int((df['outcome'] == 'safety').sum()),
+            'collisions': int((df['outcome'] == 'collision').sum()),
+            'safety_stops': int((df['outcome'] == 'safety').sum()),
             'timeouts': int((df['outcome'] == 'timeout').sum()),
             'recent_100_goal_pct': float((df['outcome'].tail(100) == 'goal').mean() * 100.0),
             'recent_100_return': float(df['return'].tail(100).mean()),
@@ -615,6 +632,7 @@ def plot_individual_algorithm_figures(
     md_path = os.path.join(algo_out_dir, f"{algo_key}_summary.md")
     with open(md_path, 'w', encoding='utf-8') as mf:
         mf.write(f"# {algo_full_name} Benchmark Summary\n\n")
+        mf.write(f"Data source: **{metrics['data_source']}**. Training-episode statistics, not held-out evaluation.\n\n")
         mf.write(f"- **Total Transitions**: {metrics['total_transitions']:,}\n")
         mf.write(f"- **Completed Episodes**: {metrics['total_episodes']:,}\n")
         mf.write(f"- **Fleet Mean Recent Goal SR**: {metrics['fleet_recent_goal_pct']:.1f}% ± {metrics['fleet_recent_goal_pct_std']:.1f}%\n")
@@ -716,7 +734,7 @@ def plot_comparative_suite(
     # Format Panel D: Grouped Outcome Bar Chart
     algo_names = [ALGORITHM_CONFIGS.get(k, {}).get('name', k) for k in algo_results.keys()]
     x_indices = np.arange(len(algo_names))
-    width = 0.22
+    width = 0.17
     
     recent_goals = [res['metrics']['fleet_recent_goal_pct'] for res in algo_results.values()]
     recent_goals_std = [res['metrics']['fleet_recent_goal_pct_std'] for res in algo_results.values()]
@@ -725,18 +743,22 @@ def plot_comparative_suite(
     lifetime_goals_std = [res['metrics']['fleet_lifetime_goal_pct_std'] for res in algo_results.values()]
     
     collisions = []
+    safety_stops = []
     timeouts = []
     for res in algo_results.values():
         total_eps = res['metrics']['total_episodes']
         col_count = sum(s['collisions'] for s in res['metrics']['seed_breakdown'].values())
+        stop_count = sum(s['safety_stops'] for s in res['metrics']['seed_breakdown'].values())
         to_count = sum(s['timeouts'] for s in res['metrics']['seed_breakdown'].values())
         collisions.append((col_count / total_eps * 100.0) if total_eps > 0 else 0)
+        safety_stops.append((stop_count / total_eps * 100.0) if total_eps > 0 else 0)
         timeouts.append((to_count / total_eps * 100.0) if total_eps > 0 else 0)
         
-    b1 = axes1[1, 1].bar(x_indices - width*1.5, lifetime_goals, width, label='Lifetime Goal %', color='#2980b9', alpha=0.85)
-    b2 = axes1[1, 1].bar(x_indices - width*0.5, recent_goals, width, yerr=recent_goals_std, capsize=4, label='Recent 100-Ep Goal %', color='#27ae60', alpha=0.85)
-    b3 = axes1[1, 1].bar(x_indices + width*0.5, collisions, width, label='Safety Collision %', color='#c0392b', alpha=0.85)
-    b4 = axes1[1, 1].bar(x_indices + width*1.5, timeouts, width, label='Timeout %', color='#f39c12', alpha=0.85)
+    b1 = axes1[1, 1].bar(x_indices - width*2, lifetime_goals, width, label='Lifetime Goal %', color='#2980b9', alpha=0.85)
+    b2 = axes1[1, 1].bar(x_indices - width, recent_goals, width, yerr=recent_goals_std, capsize=4, label='Recent 100-Ep Goal %', color='#27ae60', alpha=0.85)
+    b3 = axes1[1, 1].bar(x_indices + width, collisions, width, label='Physical Contact %', color='#c0392b', alpha=0.85)
+    axes1[1, 1].bar(x_indices, safety_stops, width, label='Safety Stop %', color='#8e44ad', alpha=0.85)
+    b4 = axes1[1, 1].bar(x_indices + width*2, timeouts, width, label='Timeout %', color='#f39c12', alpha=0.85)
     
     axes1[1, 1].set_xticks(x_indices)
     axes1[1, 1].set_xticklabels(algo_names, fontweight='bold', fontsize=10)
@@ -750,6 +772,7 @@ def plot_comparative_suite(
     plt.tight_layout(rect=[0, 0.02, 1, 0.96])
     
     comp_fig1_path = os.path.join(comp_dir, "comparative_learning_curves.png")
+    mark_figure(fig1)
     fig1.savefig(comp_fig1_path, dpi=dpi)
     plt.close(fig1)
     
@@ -771,14 +794,15 @@ def plot_comparative_suite(
             
     algo_colors = [ALGORITHM_CONFIGS.get(k, {}).get('color', '#333333') for k in algo_results.keys()]
     
-    valid_steps = [s if not np.isnan(s) else max(res['eval_steps'])/1000.0 for s in steps_to_80]
+    valid_steps = [s if not np.isnan(s) else max(item['eval_steps'])/1000.0
+                   for s, item in zip(steps_to_80, algo_results.values())]
     bars_eff = axes2[0, 0].bar(algo_names, valid_steps, color=algo_colors, alpha=0.85, edgecolor='black', width=0.55)
-    axes2[0, 0].set_title('A. Sample Efficiency (Steps to Sustained 80% SR)', fontsize=12, fontweight='bold')
+    axes2[0, 0].set_title('A. First 80% Crossing (Interpolated Training Curve)', fontsize=12, fontweight='bold')
     axes2[0, 0].set_ylabel('Environment Steps (x1,000)', fontsize=10, fontweight='bold')
     axes2[0, 0].grid(True, linestyle=':', alpha=0.6)
     for idx, bar in enumerate(bars_eff):
         val = steps_to_80[idx]
-        txt = f"{val:.0f}k" if not np.isnan(val) else ">250k"
+        txt = f"{val:.0f}k" if not np.isnan(val) else "Not reached"
         axes2[0, 0].text(bar.get_x() + bar.get_width()/2.0, bar.get_height() + 3.0, txt, ha='center', va='bottom', fontweight='bold', fontsize=9)
         
     # Panel B: Recent 100-Episode Mean Return
@@ -786,7 +810,7 @@ def plot_comparative_suite(
     returns_std = [res['metrics']['fleet_recent_return_std'] for res in algo_results.values()]
     bars_ret = axes2[0, 1].bar(algo_names, returns, yerr=returns_std, capsize=6, color=algo_colors, alpha=0.85, edgecolor='black', width=0.55)
     axes2[0, 1].axhline(100.0, color='#27ae60', linestyle='--', linewidth=1.5, label='Goal Reward (+100)')
-    axes2[0, 1].set_title('B. Converged Mean Return (Recent 100 Eps)', fontsize=12, fontweight='bold')
+    axes2[0, 1].set_title('B. Recent Training Return (100 Episodes)', fontsize=12, fontweight='bold')
     axes2[0, 1].set_ylabel('Mean Return', fontsize=10, fontweight='bold')
     axes2[0, 1].legend(loc='lower right', fontsize=8)
     axes2[0, 1].grid(True, linestyle=':', alpha=0.6)
@@ -796,7 +820,7 @@ def plot_comparative_suite(
 
     # Panel C: Final Goal Success Rate %
     bars_sr = axes2[1, 0].bar(algo_names, recent_goals, yerr=recent_goals_std, capsize=6, color=algo_colors, alpha=0.85, edgecolor='black', width=0.55)
-    axes2[1, 0].set_title('C. Converged Goal Success Rate %', fontsize=12, fontweight='bold')
+    axes2[1, 0].set_title('C. Recent Training Goal Rate (%)', fontsize=12, fontweight='bold')
     axes2[1, 0].set_ylabel('Success Rate (%)', fontsize=10, fontweight='bold')
     axes2[1, 0].set_ylim(0, 115)
     axes2[1, 0].grid(True, linestyle=':', alpha=0.6)
@@ -813,16 +837,17 @@ def plot_comparative_suite(
         axes2[1, 1].scatter(col, g, color=c, s=180, edgecolor='black', zorder=5, label=name)
         axes2[1, 1].annotate(name, (col, g), textcoords="offset points", xytext=(8, 5), fontweight='bold', fontsize=9)
         
-    axes2[1, 1].set_title('D. Goal Success vs Collision Rate Tradeoff', fontsize=12, fontweight='bold')
-    axes2[1, 1].set_xlabel('Safety Collision Rate (%) [Lower is Better]', fontsize=10, fontweight='bold')
+    axes2[1, 1].set_title('D. Recent Goal Rate vs Lifetime Contact Rate', fontsize=12, fontweight='bold')
+    axes2[1, 1].set_xlabel('Physical Contact Rate (%)', fontsize=10, fontweight='bold')
     axes2[1, 1].set_ylabel('Goal Success Rate (%) [Higher is Better]', fontsize=10, fontweight='bold')
     axes2[1, 1].grid(True, linestyle=':', alpha=0.6)
     axes2[1, 1].legend(loc='lower left', fontsize=8)
     
-    fig2.suptitle('TurtleBot3 Sample Efficiency, Converged Performance & Pareto Frontier', fontsize=14, fontweight='bold', y=0.99)
+    fig2.suptitle('TurtleBot3 Training Statistics and First Threshold Crossing', fontsize=14, fontweight='bold', y=0.99)
     plt.tight_layout(rect=[0, 0.02, 1, 0.96])
     
     comp_fig2_path = os.path.join(comp_dir, "comparative_sample_efficiency.png")
+    mark_figure(fig2)
     fig2.savefig(comp_fig2_path, dpi=dpi)
     plt.close(fig2)
     
@@ -841,6 +866,9 @@ def plot_comparative_suite(
             'Recent Goal SR %': f"{m['fleet_recent_goal_pct']:.1f} ± {m['fleet_recent_goal_pct_std']:.1f}",
             'Recent Return': f"{m['fleet_recent_return']:.2f} ± {m['fleet_recent_return_std']:.2f}",
             'Lifetime Goal %': f"{m['fleet_lifetime_goal_pct']:.1f} ± {m['fleet_lifetime_goal_pct_std']:.1f}",
+            'Safety Stops': sum(s['safety_stops'] for s in m['seed_breakdown'].values()),
+            'Physical Contacts': sum(s['collisions'] for s in m['seed_breakdown'].values()),
+            'Data Source': m['data_source'],
         })
         
     df_summary = pd.DataFrame(summary_rows)
@@ -859,7 +887,7 @@ def plot_comparative_suite(
     md_report_path = os.path.join(comp_dir, "all_algorithms_benchmark_report.md")
     with open(md_report_path, 'w', encoding='utf-8') as mf:
         mf.write("# 🏆 TurtleBot3 Phase-1 Multi-Algorithm Benchmark Comparison\n\n")
-        mf.write("Comprehensive empirical benchmark evaluating autonomous navigation performance across deep reinforcement learning baselines:\n\n")
+        mf.write(("SYNTHETIC DEMO - NOT EXPERIMENTAL RESULTS.\n\n" if DEMO_MODE else "Recorded training-episode statistics, not held-out evaluation.\n\n"))
         mf.write(tbl_str)
         mf.write("\n\n### Generated Comparative Visualizations:\n")
         mf.write(f"- [Learning Curves]({os.path.basename(comp_fig1_path)})\n")
@@ -1122,7 +1150,7 @@ def generate_interactive_html_dashboard(
                 <img src="comparative/comparative_learning_curves.png" alt="Comparative Learning Curves" onclick="openModal(this.src)" />
             </div>
             <div class="figure-container">
-                <h3>Sample Efficiency, Converged Returns & Safety Pareto Frontier</h3>
+                <h3>Training Threshold Crossings, Returns, and Contact Rates</h3>
                 <img src="comparative/comparative_sample_efficiency.png" alt="Sample Efficiency & Pareto Frontier" onclick="openModal(this.src)" />
             </div>
         </div>
@@ -1259,20 +1287,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="TurtleBot3 Multi-Algorithm Benchmark Suite & Publication Figure Generator"
     )
-    is_arc = os.path.exists("/projects/rl/Turtlebot-RL")
-    default_inputs = [
-        "/projects/rl/Turtlebot-RL/Ray/tb3_v1.1.0/results/tinkercliffs/controlled"
-    ] if is_arc else [
-        r"C:\Antigravity\dqn_results_unpacked",
-        r"C:\Antigravity\tinkercliffs_plot_data",
-        r"C:\Antigravity\results_sync",
-        r"C:\Antigravity\results",
-        r"C:\Users\dhruv\Downloads"
-    ]
-    default_output = (
-        "/projects/rl/Turtlebot-RL/Ray/tb3_v1.1.0/results/benchmark_figures"
-        if is_arc else r"C:\Antigravity\benchmark_figures"
-    )
+    default_inputs = []
+    default_output = str(Path(__file__).resolve().parent / 'generated_training')
 
     parser.add_argument(
         "--cluster",
@@ -1303,6 +1319,12 @@ def main():
         help="Generate synthetic multi-algorithm verification data to preview full comparative suite."
     )
     args = parser.parse_args()
+    global DEMO_MODE
+    DEMO_MODE = args.demo
+    if args.demo and args.cluster:
+        parser.error('--demo cannot be combined with a cluster input')
+    if not args.demo and not args.input_dirs and not args.cluster:
+        parser.error('Provide --input-dirs for recorded training data; use build_audited_report.py for paper results')
     
     # Handle cluster shortcut
     if args.cluster == "tinkercliffs":
@@ -1322,6 +1344,12 @@ def main():
     print("=== TURTLEBOT3 MULTI-ALGORITHM BENCHMARK SUITE GENERATOR ===")
     print("=" * 80)
     
+    if args.demo:
+        args.output_dir = os.path.join(args.output_dir, 'synthetic_demo')
+    protected = Path(__file__).resolve().parent
+    output = Path(args.output_dir).resolve()
+    if output in (protected, protected / 'figures', protected / 'data', protected / 'data/audited'):
+        parser.error('Choose a generated output directory; tracked audited artifacts are protected')
     cache_dir = os.path.join(args.output_dir, ".unpack_cache")
     os.makedirs(args.output_dir, exist_ok=True)
     
@@ -1329,7 +1357,7 @@ def main():
     
     if args.demo:
         generate_demo_dataset(cache_dir)
-        search_paths.insert(0, os.path.join(cache_dir, "demo_dataset"))
+        search_paths = [os.path.join(cache_dir, "demo_dataset")]
         
     # Discover and extract archives
     extracted = unpack_archives_if_needed(search_paths, cache_dir)
@@ -1363,11 +1391,23 @@ def main():
     # Generate interactive HTML dashboard
     generate_interactive_html_dashboard(algo_results, args.output_dir)
     
+    if args.demo:
+        html_path = Path(args.output_dir) / 'index.html'
+        html = html_path.read_text(encoding='utf-8')
+        html = html.replace('<body>', '<body><p style="background:#fff0d0;color:#800000;padding:20px;font-weight:bold">SYNTHETIC DEMO - NOT EXPERIMENTAL RESULTS</p>', 1)
+        html_path.write_text(html, encoding='utf-8')
+    (Path(args.output_dir) / 'provenance.json').write_text(json.dumps({
+        'data_source': 'synthetic_demo' if args.demo else 'recorded_training_episodes',
+        'input_paths': search_paths,
+        'interpretation': 'Training episode statistics, not the audited held-out evaluation',
+        'outcomes': {'safety': 'proximity stop', 'collision': 'recorded physical contact'},
+    }, indent=2), encoding='utf-8')
+
     # Master README
     readme_path = os.path.join(args.output_dir, "README.md")
     with open(readme_path, 'w', encoding='utf-8') as rf:
         rf.write("# 📊 TurtleBot3 Phase-1 Multi-Algorithm Benchmark Suite\n\n")
-        rf.write("This directory contains publication-grade individual and cross-algorithm comparative figures.\n\n")
+        rf.write(("SYNTHETIC DEMO - NOT EXPERIMENTAL RESULTS.\n\n" if args.demo else "Recorded training-episode statistics; not held-out policy evaluation.\n\n"))
         rf.write("## Directory Layout\n")
         rf.write("- `individual/`: Dedicated folders per algorithm containing multi-seed benchmark curves, Q-learning diagnostics, and per-seed JSON summaries.\n")
         rf.write("- `comparative/`: Cross-algorithm overlays for Return, Success Rate %, Sample Efficiency (steps to 80%), and Safety Pareto Frontiers.\n")
