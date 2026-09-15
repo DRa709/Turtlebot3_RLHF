@@ -24,9 +24,6 @@ and [DATA_CONTRACT.md](DATA_CONTRACT.md) for recorded fields.
 
 Follow [ARC_RUNBOOK.md](ARC_RUNBOOK.md) to build the runtime, run the tests,
 complete calibration and the two-seed pilot, and submit training and evaluation.
-Package version `1.0.1` is defined by `VERSION` and used by the package metadata
-and algorithm configuration.
-
 ## Package files
 
 | Path | Purpose |

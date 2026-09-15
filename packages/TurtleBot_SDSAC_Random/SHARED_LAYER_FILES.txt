@@ -1,6 +1,5 @@
-# The common environment/execution layer embedded inside this standalone
-# SD-SAC package. SHARED_LAYER_MANIFEST.sha256 lists its digests;
-# no file is loaded from another algorithm package at runtime.
+# Environment and execution files included in this package.
+# File checksums are listed in SHARED_LAYER_MANIFEST.sha256.
 turtlebot3_drl_nav/__init__.py
 turtlebot3_drl_nav/state.py
 turtlebot3_drl_nav/collision.py
