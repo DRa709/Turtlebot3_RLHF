@@ -320,8 +320,8 @@ tests/test_supervisor.py::test_speed_clamping PASSED                     [100%]
 If you use this codebase or benchmark suite in your research, please cite:
 
 ```bibtex
-@software{ray2026turtlebot3rlhf,
-  author = {Ray, Dhruv Shankar},
+@software{baruaandray2026turtlebot3rlhf,
+  author = {Barua, Asha, Ray, Dhruv Shankar},
   title = {Deep Reinforcement Learning & Preference Navigation Suite for TurtleBot3},
   year = {2026},
   publisher = {GitHub},
