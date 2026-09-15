@@ -1,13 +1,6 @@
-# Common random-start scientific core. Fifty-eight files are byte-identical to
-# the corrected reference core. recorder.py adds this learner's two Dueling
-# diagnostics; test_validator_parsing.py strengthens shared 63-bit boundaries;
-# test_analysis_core.py strengthens fail-closed campaign-completeness tests.
-# Package-branded preflight, analysis entry points and their rendering smoke
-# test, container, data-contract, verification-scope and hygiene files are
-# release-authenticated but intentionally not listed here.
-# SHARED_LAYER_MANIFEST.sha256 lists these core digests; every Dueling Double
-# DQN run records the digest of that manifest as shared_layer_sha256. No file is
-# loaded from another algorithm package at runtime.
+# Environment and execution files embedded in this standalone Dueling Double DQN package.
+# SHARED_LAYER_MANIFEST.sha256 lists their digests.
+# No file is loaded from another algorithm package at runtime.
 turtlebot3_drl_nav/__init__.py
 turtlebot3_drl_nav/state.py
 turtlebot3_drl_nav/collision.py

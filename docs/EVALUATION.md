@@ -62,6 +62,11 @@ the corresponding actors, configurations, containers, and deployment records.
 The [repository README](../README.md#availability-and-reproducibility) describes
 material availability.
 
+Reset acceptance changed in public commit `62f5136`. See the
+[version-specific reset checks](../README.md#reset-validation-and-experiment-versions)
+before applying the current validator to archived runs. The reported navigation
+results have not been regenerated or revalidated under that predicate.
+
 ## Limitations
 
 The six-method benchmark includes release/configuration differences, and equal

@@ -1,9 +1,6 @@
-# Byte-identical scientific core inherited from the locally verified DQN v1.1.2
-# random-start environment. Package-branded preflight, container, data-contract,
-# verification-scope and hygiene files are release-authenticated but intentionally
-# not listed here.
-# SHARED_LAYER_MANIFEST.sha256 lists these core digests; every Double DQN run
-# records the digest of that manifest as shared_layer_sha256.
+# Environment and execution files embedded in this standalone Double DQN package.
+# SHARED_LAYER_MANIFEST.sha256 lists their digests.
+# No file is loaded from another algorithm package at runtime.
 turtlebot3_drl_nav/__init__.py
 turtlebot3_drl_nav/state.py
 turtlebot3_drl_nav/collision.py

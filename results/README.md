@@ -39,6 +39,10 @@ The builder checks hashes, learner/aggregate agreement, exclusive outcomes,
 and comparison accounting. `source_verification.json` records checks on 185 saved
 prediction rows and 1,144 continuation episodes, including requested E2 scenarios.
 
+These navigation summaries predate the reset-acceptance change in public commit
+`62f5136`. They have not been regenerated or revalidated with the current
+predicate; see [reset validation and experiment versions](../README.md#reset-validation-and-experiment-versions).
+
 ## Limitations
 
 The episode and prediction records used for the source checks are not included

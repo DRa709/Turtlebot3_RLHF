@@ -270,6 +270,40 @@ equivalence to every source component in this repository has not been establishe
 See the [evaluation guide](docs/EVALUATION.md) for provenance, completed checks,
 and the scope of simulation and physical-robot validation.
 
+### Reset validation and experiment versions
+
+Commit [62f5136](https://github.com/DRa709/Turtlebot3_RLHF/commit/62f51367187cbb764145d3fecf285520f116c41e)
+changed reset acceptance in the episode engine and offline validator. It makes
+membership in the declared starting region independent of pose-error tolerance.
+The preceding public version,
+[f84b84d](https://github.com/DRa709/Turtlebot3_RLHF/tree/f84b84de7793512fce01d79833e78c4d86813c4c),
+passed the position/odometry tolerance as a margin to `sampler.admissible`:
+
+| Check | Public code at `f84b84d` | Public code from `62f5136` |
+| --- | --- | --- |
+| Realized-position support | `admissible(x, y, margin=init_position_tolerance)`; configured margin 0.03 m | `admissible(x, y)`; zero margin |
+| Odometry-position support | `admissible(x, y, margin=init_odom_tolerance)`; configured margin 0.05 m | `admissible(x, y)`; zero margin |
+
+The earlier margins expanded the x/y bounds and reduced the required static and
+swept-obstacle clearance; they did not relax the goal-exclusion radius. Separate
+pose-error tolerances, the initial LiDAR-clearance check, and the E3 fixed-start
+exemption from support membership remain unchanged. An existing reset regression
+showed that a 0.029 m position shift could leave the declared region while passing
+the earlier check; this motivated the change.
+
+**The navigation results in `results/` predate this change and have not been
+regenerated or revalidated with the current reset predicate.** The CSV values and
+reported outcome counts are unchanged. The current validator can reject a reset
+that the preceding public validator accepted; passing software tests does not
+establish historical-run compatibility or new navigation results.
+
+Exact historical reproduction requires each run's archived source, configuration,
+container, and validation records. The preceding public commit identifies a code
+version, not a verified deployment for every ARC run. Do not infer the historical
+predicate from the current source or an `init_support_ok` flag alone. When
+revalidating archived episodes with a different predicate, report that as a
+separate check and retain the original evaluation cohort and outcomes.
+
 ## Authors and citation
 
 - **Asha Barua** — [@ashabarua](https://github.com/ashabarua), ashabarua@vt.edu.
