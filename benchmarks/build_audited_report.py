@@ -234,7 +234,7 @@ footer{font-size:14px;color:#4c625a}@media(max-width:600px){main{padding:16px 12
 <a href="../docs/EVALUATION.md">Evaluation methodology and reproducibility</a></p>
 ''' + ''.join(sections) + '''<footer>Evaluation data snapshot: 15 September 2026. See the data guide for source provenance.
 These summaries reproduce the figures; they do not verify historical deployed code or establish physical-robot performance.
-Experiment-specific code is available upon request. OpenAI Codex assisted with documentation and rendering from existing records.</footer>
+Experiment-specific code is available upon request. The authors wrote the code and used OpenAI Codex to debug and fix it; experiments ran on the ARC cluster and the figures were generated locally from the recorded CSV files.</footer>
 </main></body></html>\n'''
 
 

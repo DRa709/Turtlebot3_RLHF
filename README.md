@@ -300,5 +300,7 @@ author lists and citation records.
 When citing a specific result, identify its evaluation cohort and the repository
 commit/release containing the reported tables. See [CITATION.cff](CITATION.cff).
 
-OpenAI Codex assisted with this documentation, reporting code, and figure rendering
-from existing experiment records. No missing measurements were generated.
+The authors wrote the navigation, training, and evaluation code and used OpenAI
+Codex to debug and fix it. The experiments were run on the ARC cluster, the recorded
+results were saved as the CSV files under `benchmarks/data/audited/`, and the
+figures were generated locally from those files.
