@@ -6,7 +6,7 @@ The package is assessed against its own random-initialization, algorithmic and A
 
 ## Principal guarantees
 
-- The archive contains one learner only: `DoubleDQN`. It contains no DQN, Dueling Double DQN, Rainbow DQN, Discrete SAC, PPO or A2C learner implementation.
+- The archive contains one learner only: `DoubleDQN`. It contains no DQN, Dueling Double DQN, Rainbow DQN or Discrete SAC learner implementation.
 - The Double DQN target uses the online network for action selection and the target network for evaluation. A discriminator test forces the two networks to rank different actions and rejects the standard-DQN target.
 - Episode 1 and every later training episode draw a robot pose from the same seeded, episode-indexed $\nu_R$ sampler.
 - Start poses must satisfy the frozen arena, goal and complete dynamic-obstacle-corridor clearance rules.

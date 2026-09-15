@@ -9,8 +9,8 @@ against, or make a performance claim about a fixed-initialization package.
 
 ## What this package guarantees
 
-- One learner only: DQN. There is no Double DQN, Dueling, Rainbow, SAC, PPO or
-  A2C implementation in this archive.
+- One learner only: DQN. There is no Double DQN, Dueling, Rainbow or SAC
+  implementation in this archive.
 - Episode 1 and every later training episode draw a robot pose from the same
   seeded, episode-indexed $\nu_R$ sampler.
 - Start poses are rejected unless they satisfy the frozen arena, goal and swept

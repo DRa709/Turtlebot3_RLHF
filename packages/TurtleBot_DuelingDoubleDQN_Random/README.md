@@ -7,8 +7,8 @@ The package is assessed against its own random-initialization, algorithmic and A
 ## Principal guarantees
 
 - The archive contains one learner only: `DuelingDoubleDQN`. It contains no
-  standard DQN, Double DQN, Rainbow DQN, Discrete SAC, SD-SAC, PPO or A2C
-  learner implementation.
+  standard DQN, Double DQN, Rainbow DQN, Discrete SAC or SD-SAC learner
+  implementation.
 - The shared feature trunk feeds a scalar value head and a five-action
   advantage head, combined as `V + A - mean(A)`.
 - The target uses the online network for action selection and the target

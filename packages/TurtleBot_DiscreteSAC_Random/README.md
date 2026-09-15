@@ -2,7 +2,7 @@
 
 Standalone, direct-ARC package for categorical Discrete SAC under the frozen
 random initial-state distribution. It is independent of DQN, Double DQN,
-Dueling Double DQN, Rainbow DQN, SD-SAC and PPO: it has its own source,
+Dueling Double DQN, Rainbow DQN and SD-SAC: it has its own source,
 configuration, container recipe, Slurm arrays, workspace, checkpoints,
 results, validator, tables and figures. Jupyter is neither required nor
 included.
