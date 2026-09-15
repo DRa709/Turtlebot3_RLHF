@@ -204,11 +204,11 @@ def render_html(tables):
          'Final primary E1 evaluation: five learners with 20 trials each. Discrete SAC, Double DQN, and Rainbow tie at 97%. SD is across five learner rates.',
          [('benchmark', 'Recorded checkpoint means and all five final learner rates. Cases change between checkpoints.'),
           ('outcomes', 'Exclusive terminal outcomes. Safety stops are distinct from recorded physical contacts.')]),
-        ('AUDITED_CONTINUATION', 'Continuation: goal retention failed',
+        ('AUDITED_CONTINUATION', 'Goal retention during policy continuation',
          'E2 differs from E1: 20 scenarios, two learners, and two action-selection modes, totaling 80 trials. Both conditions use actor-only continuation. Neither retained baseline performance.',
          [('retention', 'Seed-range shading is not a confidence interval. Uneven training-action counts appear as equally spaced checkpoint categories.'),
           ('diagnostics', 'Clearance falls in both conditions. KL describes policy change, not its cause. Zero contacts does not establish improved obstacle avoidance.')]),
-        ('AUDITED_COMPARISONS', 'Comparison budgets: prediction, not navigation success',
+        ('AUDITED_COMPARISONS', 'Human-comparison budgets and reward prediction',
          'The same 22 strict validation pairs determine accuracy; cross-entropy uses all 37 pairs including 15 ties. Validation was reused for selection and only one reward-model seed is available.',
          [('comparison_budget', 'Strict accuracy rises from 50.00% to 86.36%; cross-entropy is lowest at 150. Navigation was evaluated only at 200 comparisons. Improvements across navigation budgets remain untested.')]),
     ]
@@ -220,7 +220,7 @@ def render_html(tables):
         sections.append(f'<section><h2>{title}</h2><p>{description}</p><div class="table">{table}</div>{images}</section>')
     return '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Audited TurtleBot3 navigation results</title><style>
+<title>TurtleBot3 RLHF | Evaluation results</title><style>
 body{font:16px/1.6 system-ui,sans-serif;margin:0;background:#f3f6f5;color:#233a34}
 main{max-width:1060px;margin:auto;padding:36px 24px}h1{font-size:34px;line-height:1.2}
 h2{line-height:1.25}section{background:white;padding:28px;margin:28px 0;border:1px solid #d8e2de;border-radius:12px}
@@ -228,11 +228,11 @@ a{color:#086b62}.lead{font-size:18px}img{max-width:100%;height:auto}figure{margi
 figcaption{font-size:14px;color:#4c625a}.table{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{padding:9px 11px;border-bottom:1px solid #dae4df;text-align:left}th{background:#edf5f1}
 footer{font-size:14px;color:#4c625a}@media(max-width:600px){main{padding:16px 12px}section{padding:16px}h1{font-size:27px}}
-</style></head><body><main><h1>Audited TurtleBot3 navigation results</h1>
+</style></head><body><main><h1>TurtleBot3 RLHF: evaluation results</h1>
 <p class="lead">Goal reaching, safety stops, physical contacts, and reward prediction are reported separately.</p>
 <p><a href="../README.md">Project documentation</a> · <a href="data/audited/README.md">Data and provenance</a> ·
-<a href="../docs/RESULTS_ALIGNMENT.md">Corrections and remaining limits</a></p>
-''' + ''.join(sections) + '''<footer>Source: aggregate tables audited for manuscript revision 6, 15 September 2026.
+<a href="../docs/EVALUATION.md">Evaluation methodology and reproducibility</a></p>
+''' + ''.join(sections) + '''<footer>Evaluation data snapshot: 15 September 2026. See the data guide for source provenance.
 These summaries reproduce the figures; they do not verify historical deployed code or establish physical-robot performance.
 Experiment-specific code is available upon request. OpenAI Codex assisted with documentation and rendering from existing records.</footer>
 </main></body></html>\n'''

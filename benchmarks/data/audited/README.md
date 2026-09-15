@@ -1,9 +1,9 @@
-# Audited aggregate results
+# Evaluation data and provenance
 
 These tables are unchanged exports from the audited ICRA2027 manuscript revision 6
 snapshot (15 September 2026). They represent the cohorts reported there; do not
 pool them with earlier partial archives, retries, demo output, or unspecified runs.
-The reference repository before this correction is commit
+The source inventory records reference repository commit
 `e7eb5a888f54eff136354ecba340cec7d0a26192`.
 
 | File | Unit and role |
@@ -16,7 +16,7 @@ The reference repository before this correction is commit
 | `comparison_budget_metrics.csv` | Reward-prediction metrics at five cumulative comparison budgets |
 | `policy_diagnostics.csv` | Fixed-observation categorical-policy change during continuation |
 | `manifest.json` | SHA-256 hashes and source scope for all seven CSVs |
-| `source_verification.json` | The earlier audit record, which also used episode-level and prediction-level records not included here |
+| `source_verification.json` | Source verification record, including episode-level and prediction-level checks on records not included here |
 
 ## Denominators and interpretation
 

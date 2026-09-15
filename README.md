@@ -1,16 +1,63 @@
-# Discrete-action TurtleBot3 navigation and human preference evaluation
+# TurtleBot3 RLHF
 
-Research software for evaluating goal reaching, safety stops, physical contacts,
-and preference-based policy continuation in TurtleBot3 simulation.
+## Discrete-action navigation and human preference learning
 
-**The audited final Discrete SAC benchmark is 97 goals in 100 trials.** Double DQN
-and Rainbow also reach 97%. This benchmark precedes preference-based continuation.
-The completed continuation experiment loses goal-reaching performance under both
-original and preference rewards. Increasing human comparisons improves one reward
-prediction metric; improved navigation across comparison budgets remains a hypothesis.
+TurtleBot3 RLHF brings together six reinforcement-learning algorithms, TurtleBot3
+simulation, human-preference reward modeling, and navigation evaluation in one
+research repository. The study asks how a robot can adapt to human preferences
+while retaining its ability to reach goals and navigate around obstacles.
 
-[Results dashboard](benchmarks/index.html) · [Data and provenance](benchmarks/data/audited/README.md)
-· [Reporting corrections](docs/RESULTS_ALIGNMENT.md) · [Software citation](CITATION.cff)
+[Package overview](#package-overview) · [Getting started](#getting-started)
+· [Problem formulation](#problem-formulation) · [Evaluation results](#navigation-benchmark)
+· [Results dashboard](benchmarks/index.html) · [Evaluation guide](docs/EVALUATION.md)
+· [Software citation](CITATION.cff)
+
+## Package overview
+
+| Component | Contents |
+| --- | --- |
+| [Navigation source](turtlebot3_drl_nav/) | Discrete-action learners, observations, episode control, recording, and validation |
+| [Algorithm packages](packages/) | Six algorithm-specific configurations, ROS launch files, simulation scripts, and cluster runbooks |
+| [Preference learning](turtlebot3_drl_nav/algorithms/discrete_sac/preference_learning/) | Comparison datasets, preference loss, and neural reward models |
+| [Simulation](simulation/) | Gazebo worlds and ROS launch definitions |
+| [Cluster execution](cluster/) | Apptainer and Slurm resources |
+| [Robot tools](laptop/) and [command supervisor](pi/) | Offline actor checks, robot runner, and local command supervision |
+| [Evaluation](benchmarks/) | Result tables, five figures, a dashboard, and reporting tools |
+
+The algorithm packages organize DQN, Double DQN, Dueling Double DQN, Rainbow DQN,
+Discrete SAC, and SD-SAC within the same repository. Each has its own runtime
+configuration and experiment outputs; follow the selected package's runbook
+when training or evaluating a learner.
+
+## Getting started
+
+Clone the complete repository:
+
+```bash
+git clone https://github.com/DRa709/Turtlebot3_RLHF.git
+cd Turtlebot3_RLHF
+```
+
+For result analysis, use the lightweight [figure-rebuilding workflow](#rebuild-the-reported-figures).
+For navigation experiments, select an algorithm package below and follow its
+environment and execution instructions. Those runbooks specify ROS 2 Foxy,
+Gazebo 11, container setup, calibration, and training/evaluation commands.
+Use the package-specific workspace described there because the algorithm packages
+share the ROS package name `turtlebot3_drl_nav`.
+
+| Algorithm | Package guide |
+| --- | --- |
+| DQN | [DQN setup and execution](packages/TurtleBot_DQN_Random/README.md) |
+| Double DQN | [Double DQN setup and execution](packages/TurtleBot_DoubleDQN_Random/README.md) |
+| Dueling Double DQN | [Dueling Double DQN setup and execution](packages/TurtleBot_DuelingDoubleDQN_Random/README.md) |
+| Rainbow DQN | [Rainbow DQN setup and execution](packages/TurtleBot_RainbowDQN_Random/README.md) |
+| Discrete SAC | [Discrete SAC setup and execution](packages/TurtleBot_DiscreteSAC_Random/README.md) |
+| SD-SAC | [SD-SAC setup and execution](packages/TurtleBot_SDSAC_Random/README.md) |
+
+The root Python source can be installed with `python -m pip install -e .` in a
+suitable environment. ROS/Gazebo deployment also requires the selected package's
+dependencies and launch setup. See the [validation scope](docs/EVALUATION.md#validation-scope)
+for the checks performed on this repository.
 
 ## Problem formulation
 
@@ -57,11 +104,11 @@ $0^\circ$. Normalization bounds come from the active configuration.
 | 3 | Rotate left in place | 0.00 | +1.0 |
 | 4 | Rotate right in place | 0.00 | -1.0 |
 
-These are the current `ActionMap` defaults and the reference commands used in the
-audited paper. Historical evaluated deployments are not fully matched to this
-public snapshot. The policy selects a discrete action ID; it does not generate
-continuous-valued commands. Qualitative preference for a smoother route does not
-establish measured smoothness or a continuous-action policy.
+These are the current `ActionMap` defaults and the study's reference commands.
+The policy selects a discrete action ID; it does not generate continuous-valued
+commands. Route smoothness would require a separate measurement. Matching each
+evaluated deployment to this source remains part of the
+[reproducibility scope](docs/EVALUATION.md#reproducibility-scope).
 
 Terminal outcomes are **physical contact**, **safety stop**, **goal reached**, or
 **time-limit truncation**, with contact > stop > goal precedence in the reward
@@ -77,8 +124,7 @@ implementations; the study does not claim a new SAC update or universal rankings
 
 - [Discrete SAC](turtlebot3_drl_nav/algorithms/discrete_sac/discretesac.py) uses a
   categorical actor, two action-value critics, and exact sums over five actions.
-  Its configuration fixes entropy temperature at `alpha=0.2`; it does not implement
-  the automatic-temperature update previously described in this README.
+  Its configuration fixes entropy temperature at `alpha=0.2`.
 - [SD-SAC](turtlebot3_drl_nav/algorithms/sdsac/sdsac.py) is a controlled adaptation
   of Zhou et al.'s method with double-average Q learning, an entropy-change penalty,
   and Q clipping. It does not bin a continuous Gaussian policy.
@@ -86,7 +132,10 @@ implementations; the study does not claim a new SAC update or universal rankings
   SD-SAC follows [Zhou et al. (2024)](https://arxiv.org/abs/2209.10081).
   See the source headers and configuration files for implementation details.
 
-## Audited benchmark: why Discrete SAC is 97%
+## Navigation benchmark
+
+The final Discrete SAC benchmark is **97 goals in 100 trials**. Double DQN and
+Rainbow also reach 97%. This evaluation precedes preference-based continuation.
 
 Each of the six methods has five trained learners (seeds 101, 202, 303, 404, 505),
 each trained for 500,000 actions. The final primary evaluation contains 20 E1
@@ -203,10 +252,10 @@ python -m pip install pytest
 python -m pytest tests/test_benchmark_reporting.py tests/test_pomdp_contracts.py tests/test_geometry.py -q
 ```
 
-This rebuilds the tables, dashboard, and plots from the included audited summaries.
+This rebuilds the tables, dashboard, and plots from the included result summaries.
 It performs consistency and provenance checks; it does not train a policy or rerun
 Gazebo. The [data README](benchmarks/data/audited/README.md) specifies which checks
-are reproducible from aggregates and which earlier checks used episode-level records.
+are reproducible from aggregates and which source checks used episode-level records.
 
 `generate_benchmark_suite.py` is a separate **training-episode** exploration tool:
 
@@ -219,29 +268,24 @@ Synthetic previews are isolated under `synthetic_demo`, visibly labeled, and nev
 mixed with real input directories. Rolling training success and first crossings
 are not final held-out success or the paper's sustained-success criterion.
 
-## Implementation and availability
+## Availability and reproducibility
 
-The public repository provides navigation source, preference-model components,
-simulation assets, cluster recipes, and laptop/robot safety tools. Package
-installation uses `python -m pip install -e .` in a suitable Python/ROS environment.
-ROS/Gazebo and hardware execution require their own dependency and deployment setup.
-The scope of checks run for this correction is recorded in [RESULTS_ALIGNMENT.md](docs/RESULTS_ALIGNMENT.md).
-
+The navigation package, preference-learning components, simulation assets,
+evaluation summaries, and figure-generation tools are provided in this repository.
 **Experiment-specific code is available upon request.** The included summaries
-reproduce the reported figures, but they do not establish that every public source
-file, checkpoint, configuration, or container matches the historical experiment.
-No claim of bit-exact training reproduction, verified physical navigation gains,
-or reward-hacking suppression follows from source availability. The public reward
-ensemble component is not proof that the historical reward-model configuration
-matches it. Physical robot deployment and safety guarantees require separate validation.
+reproduce the reported figures. Exact reproduction of the recorded experiments
+also requires their checkpoints, configurations, containers, and deployment records;
+equivalence to every source component in this repository has not been established.
+See the [evaluation guide](docs/EVALUATION.md) for provenance, completed checks,
+and the scope of simulation and physical-robot validation.
 
 ## Authors and citation
 
 - **Asha Barua** — [@ashabarua](https://github.com/ashabarua), ashabarua@vt.edu.
-- **Dhruv Shankar Ray** — [@DRa709](https://github.com/DRa709), existing package maintainer.
+- **Dhruv Shankar Ray** — [@DRa709](https://github.com/DRa709), package maintainer.
 
-Software credit and paper author order are separate records. The citation below
-retains the author order already present in the repository before this correction.
+Use the following citation for the software. Research papers have their own
+author lists and citation records.
 
 ```bibtex
 @software{baruaandray2026turtlebot3rlhf,
@@ -254,7 +298,7 @@ retains the author order already present in the repository before this correctio
 ```
 
 When citing a specific result, identify its evaluation cohort and the repository
-commit/release containing these audited tables. See [CITATION.cff](CITATION.cff).
+commit/release containing the reported tables. See [CITATION.cff](CITATION.cff).
 
 OpenAI Codex assisted with this documentation, reporting code, and figure rendering
 from existing experiment records. No missing measurements were generated.
