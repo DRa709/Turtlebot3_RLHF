@@ -3,8 +3,7 @@
 This is the discrete-action SAC formulation of Christodoulou (2019): a
 categorical actor, two action-value critics, clipped double-Q targets and exact
 sums over the finite action set. The study fixes alpha instead of optimizing
-it. Replay is uniform and targets are one-step. This module has no ROS
-dependency and imports no other algorithm implementation.
+it. Replay is uniform and targets are one-step.
 """
 
 import hashlib

@@ -1,7 +1,7 @@
 # Data contract — standalone SD-SAC
 
 Executable schemas are in `turtlebot3_drl_nav/recorder.py`; independent checks
-are in `turtlebot3_drl_nav/validator.py`. Analysis accepts only sealed
+are in `turtlebot3_drl_nav/validator.py`. Analysis accepts only validated
 `algorithm=SDSAC`, `arm=random` runs and refuses foreign algorithms.
 
 ## Run commit protocol

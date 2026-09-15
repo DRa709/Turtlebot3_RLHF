@@ -1324,7 +1324,7 @@ def main():
     if args.demo and args.cluster:
         parser.error('--demo cannot be combined with a cluster input')
     if not args.demo and not args.input_dirs and not args.cluster:
-        parser.error('Provide --input-dirs for recorded training data; use build_audited_report.py for paper results')
+        parser.error('Provide --input-dirs for recorded training data; use build_report.py for evaluation results')
     
     # Handle cluster shortcut
     if args.cluster == "tinkercliffs":
@@ -1348,8 +1348,8 @@ def main():
         args.output_dir = os.path.join(args.output_dir, 'synthetic_demo')
     protected = Path(__file__).resolve().parent
     output = Path(args.output_dir).resolve()
-    if output in (protected, protected / 'figures', protected / 'data', protected / 'data/audited'):
-        parser.error('Choose a generated output directory; tracked audited artifacts are protected')
+    if output in (protected, protected / 'figures', protected / 'data', protected.parent / 'results'):
+        parser.error('Choose a generated output directory; tracked result files are protected')
     cache_dir = os.path.join(args.output_dir, ".unpack_cache")
     os.makedirs(args.output_dir, exist_ok=True)
     
@@ -1399,7 +1399,7 @@ def main():
     (Path(args.output_dir) / 'provenance.json').write_text(json.dumps({
         'data_source': 'synthetic_demo' if args.demo else 'recorded_training_episodes',
         'input_paths': search_paths,
-        'interpretation': 'Training episode statistics, not the audited held-out evaluation',
+        'interpretation': 'Training episode statistics, not the held-out evaluation',
         'outcomes': {'safety': 'proximity stop', 'collision': 'recorded physical contact'},
     }, indent=2), encoding='utf-8')
 

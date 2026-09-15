@@ -1,5 +1,5 @@
-# Preserve the audited CSV bytes whose SHA-256 hashes are published in the manifest.
-benchmarks/data/audited/*.csv -text whitespace=cr-at-eol
+# Preserve the result CSV bytes whose SHA-256 hashes are published in the manifest.
+results/*.csv -text whitespace=cr-at-eol
 benchmarks/figures/*.svg linguist-generated=true
 # Keep package files byte-consistent with their Linux release manifests.
 packages/** text=auto eol=lf

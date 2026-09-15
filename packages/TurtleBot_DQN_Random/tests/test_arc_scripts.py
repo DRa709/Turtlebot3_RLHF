@@ -31,10 +31,10 @@ def sha256_file(path):
 
 
 class ArcScriptContractTests(unittest.TestCase):
-    def test_v117_identity_is_consistent_across_algorithm_package_files(self):
+    def test_package_identity_is_consistent_across_algorithm_files(self):
         with open(os.path.join(ROOT, "VERSION"), encoding="utf-8") as stream:
             self.assertEqual(stream.read().strip(), "1.1.7")
-        for relative in ("README.md", "ALGORITHM.md", "ARC_RUNBOOK.md", "AUDIT_CORRECTIONS.md", "CHANGELOG.md"):
+        for relative in ("README.md", "ALGORITHM.md", "ARC_RUNBOOK.md"):
             self.assertIn("1.1.7", source(relative), relative)
         self.assertIn('version="1.1.7"', source("setup.py"))
         self.assertIn("<version>1.1.7</version>", source("package.xml"))

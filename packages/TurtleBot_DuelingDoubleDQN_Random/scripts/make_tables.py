@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build Dueling-Double-DQN-only random-arm tables (T-R1 … T-R9) from
 completed run directories as CSV (data), Markdown (reading) and LaTeX booktabs
-(IEEE camera-ready). Any other algorithm identity is rejected. Terminal only.
+(IEEE camera-ready). Any other algorithm identity is rejected.
 
     python3 scripts/make_tables.py --results <root> --out <dir>
 

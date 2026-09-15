@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build the random-arm tables (T-R1 … T-R9) from completed run directories as
-CSV (data), Markdown (reading) and LaTeX booktabs (IEEE camera-ready). Terminal only.
+CSV (data), Markdown (reading) and LaTeX booktabs (IEEE camera-ready).
 
     python3 scripts/make_tables.py --results <root> --out <dir>
 

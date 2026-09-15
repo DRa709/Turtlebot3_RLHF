@@ -1,4 +1,4 @@
-"""Rebuild audited aggregate results; no training, new labels, or simulator runs."""
+"""Rebuild aggregate results; no training, new labels, or simulator runs."""
 from pathlib import Path
 import argparse
 import html
@@ -10,13 +10,13 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 if __package__:
-    from .audited_results import load_audited_data, validate_data
+    from .result_data import load_results, validate_data
 else:
-    from audited_results import load_audited_data, validate_data
+    from result_data import load_results, validate_data
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DATA, FIG = HERE / 'data/audited', HERE / 'figures'
+DATA, FIG = ROOT / 'results', HERE / 'figures'
 ORDER = ['DQN','DoubleDQN','DuelingDoubleDQN','RainbowDQN','DiscreteSAC','SDSAC']
 LABELS = ['DQN','Double DQN','Dueling Double','Rainbow','Discrete SAC','SD-SAC']
 COLORS = ['#53758D','#1779AA','#B77937','#178471','#7959A1','#B65275']
@@ -187,11 +187,11 @@ def report_tables(tables):
                             f'{int(row.strict_correct)}/{row.strict_n}',
                             f'{row.strict_accuracy_pct:.2f}', f'{row.pair_cross_entropy:.3f}'])
     return {
-        'AUDITED_BENCHMARK': (['Method', 'Goals', 'Success (%)', 'Learner SD (pp)',
+        'RESULTS_BENCHMARK': (['Method', 'Goals', 'Success (%)', 'Learner SD (pp)',
                                'Safety stops', 'Contacts', 'Timeouts'], benchmark_rows),
-        'AUDITED_CONTINUATION': (['Condition', 'Goals', 'Success (%)', 'Safety stops',
+        'RESULTS_CONTINUATION': (['Condition', 'Goals', 'Success (%)', 'Safety stops',
                                   'Contacts', 'Timeouts'], continuation_rows),
-        'AUDITED_COMPARISONS': (['Collected comparisons', 'Fitting pairs', 'Correct / strict pairs',
+        'RESULTS_COMPARISONS': (['Collected comparisons', 'Fitting pairs', 'Correct / strict pairs',
                                  'Accuracy (%)', 'Pair cross-entropy'], budget_rows),
     }
 
@@ -200,17 +200,17 @@ def render_html(tables):
     rendered = report_tables(tables)
     sections = []
     descriptions = [
-        ('AUDITED_BENCHMARK', 'Benchmark: 97 goals in 100 trials',
+        ('RESULTS_BENCHMARK', 'Benchmark: 97 goals in 100 trials',
          'Final primary E1 evaluation: five learners with 20 trials each. Discrete SAC, Double DQN, and Rainbow tie at 97%. SD is across five learner rates.',
          [('benchmark', 'Recorded checkpoint means and all five final learner rates. Cases change between checkpoints.'),
           ('outcomes', 'Exclusive terminal outcomes. Safety stops are distinct from recorded physical contacts.')]),
-        ('AUDITED_CONTINUATION', 'Goal retention during policy continuation',
-         'E2 differs from E1: 20 scenarios, two learners, and two action-selection modes, totaling 80 trials. Both conditions use actor-only continuation. Neither retained baseline performance.',
-         [('retention', 'Seed-range shading is not a confidence interval. Uneven training-action counts appear as equally spaced checkpoint categories.'),
-          ('diagnostics', 'Clearance falls in both conditions. KL describes policy change, not its cause. Zero contacts does not establish improved obstacle avoidance.')]),
-        ('AUDITED_COMPARISONS', 'Human-comparison budgets and reward prediction',
+        ('RESULTS_CONTINUATION', 'Goal retention during policy continuation',
+         'E2 uses 20 scenarios, two learners, and two action-selection modes, totaling 80 trials. Both actor-only continuations lose goal-reaching performance.',
+         [('retention', 'Shading shows the range of two learner rates. Uneven training-action counts appear as checkpoint categories.'),
+          ('diagnostics', 'Clearance falls in both conditions. KL measures categorical-policy change on fixed observations.')]),
+        ('RESULTS_COMPARISONS', 'Human-comparison budgets and reward prediction',
          'The same 22 strict validation pairs determine accuracy; cross-entropy uses all 37 pairs including 15 ties. Validation was reused for selection and only one reward-model seed is available.',
-         [('comparison_budget', 'Strict accuracy rises from 50.00% to 86.36%; cross-entropy is lowest at 150. Navigation was evaluated only at 200 comparisons. Improvements across navigation budgets remain untested.')]),
+         [('comparison_budget', 'Strict accuracy rises from 50.00% to 86.36%; cross-entropy is lowest at 150. Navigation was evaluated only at 200 comparisons.')]),
     ]
     for key, title, description, figures in descriptions:
         headers, rows = rendered[key]
@@ -230,11 +230,15 @@ th,td{padding:9px 11px;border-bottom:1px solid #dae4df;text-align:left}th{backgr
 footer{font-size:14px;color:#4c625a}@media(max-width:600px){main{padding:16px 12px}section{padding:16px}h1{font-size:27px}}
 </style></head><body><main><h1>TurtleBot3 RLHF: evaluation results</h1>
 <p class="lead">Goal reaching, safety stops, physical contacts, and reward prediction are reported separately.</p>
-<p><a href="../README.md">Project documentation</a> · <a href="data/audited/README.md">Data and provenance</a> ·
+<p><a href="../README.md">Project documentation</a> · <a href="../results/README.md">Data and provenance</a> ·
 <a href="../docs/EVALUATION.md">Evaluation methodology and reproducibility</a></p>
-''' + ''.join(sections) + '''<footer>Evaluation data snapshot: 15 September 2026. See the data guide for source provenance.
-These summaries reproduce the figures; they do not verify historical deployed code or establish physical-robot performance.
-Experiment-specific code is available upon request. The authors wrote the code and used OpenAI Codex to debug and fix it; experiments ran on the ARC cluster and the figures were generated locally from the recorded CSV files.</footer>
+''' + ''.join(sections) + '''<section><h2>Limitations</h2><p>
+E1 and E2 use different scenario panels. Contacts were measured with an active stopping mechanism.
+Both continuation conditions restart critics and replay, so reward effects are not isolated.
+Prediction results reuse validation pairs and one reward-model seed; navigation gains across budgets
+and physical-robot gains remain unmeasured. Reproducing the figures from summaries does not rerun the experiments.
+</p></section><footer>The authors wrote the code and used OpenAI Codex to debug and fix it; experiments ran on the ARC cluster and the figures were generated locally from the recorded CSV files.
+See the <a href="../results/README.md">data guide</a> for provenance and the <a href="../README.md#availability-and-reproducibility">README</a> for availability.</footer>
 </main></body></html>\n'''
 
 
@@ -242,7 +246,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Validate data and generated text without rewriting files')
     args = parser.parse_args()
-    tables = load_audited_data(DATA)
+    tables = load_results(DATA)
     readme_path = ROOT / 'README.md'
     readme = readme_path.read_text(encoding='utf-8')
     updated = readme
@@ -255,7 +259,7 @@ def main():
     dashboard = render_html(tables)
     if args.check:
         if updated != readme or dashboard != (HERE / 'index.html').read_text(encoding='utf-8'):
-            raise ValueError('Generated documentation differs from the audited tables; rebuild it')
+            raise ValueError('Generated documentation differs from the result tables; rebuild it')
         for name in ['benchmark', 'outcomes', 'retention', 'diagnostics', 'comparison_budget']:
             if not (FIG / f'{name}.png').exists():
                 raise ValueError(f'Missing reported figure: {name}')

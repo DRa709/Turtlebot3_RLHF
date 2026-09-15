@@ -10,7 +10,7 @@ th,td{padding:9px 11px;border-bottom:1px solid #dae4df;text-align:left}th{backgr
 footer{font-size:14px;color:#4c625a}@media(max-width:600px){main{padding:16px 12px}section{padding:16px}h1{font-size:27px}}
 </style></head><body><main><h1>TurtleBot3 RLHF: evaluation results</h1>
 <p class="lead">Goal reaching, safety stops, physical contacts, and reward prediction are reported separately.</p>
-<p><a href="../README.md">Project documentation</a> · <a href="data/audited/README.md">Data and provenance</a> ·
+<p><a href="../README.md">Project documentation</a> · <a href="../results/README.md">Data and provenance</a> ·
 <a href="../docs/EVALUATION.md">Evaluation methodology and reproducibility</a></p>
 <section><h2>Benchmark: 97 goals in 100 trials</h2><p>Final primary E1 evaluation: five learners with 20 trials each. Discrete SAC, Double DQN, and Rainbow tie at 97%. SD is across five learner rates.</p><div class="table"><table class="dataframe">
   <thead>
@@ -80,7 +80,7 @@ footer{font-size:14px;color:#4c625a}@media(max-width:600px){main{padding:16px 12
       <td>1</td>
     </tr>
   </tbody>
-</table></div><figure><img src="figures/benchmark.png" alt="Recorded checkpoint means and all five final learner rates. Cases change between checkpoints."><figcaption>Recorded checkpoint means and all five final learner rates. Cases change between checkpoints.</figcaption></figure><figure><img src="figures/outcomes.png" alt="Exclusive terminal outcomes. Safety stops are distinct from recorded physical contacts."><figcaption>Exclusive terminal outcomes. Safety stops are distinct from recorded physical contacts.</figcaption></figure></section><section><h2>Goal retention during policy continuation</h2><p>E2 differs from E1: 20 scenarios, two learners, and two action-selection modes, totaling 80 trials. Both conditions use actor-only continuation. Neither retained baseline performance.</p><div class="table"><table class="dataframe">
+</table></div><figure><img src="figures/benchmark.png" alt="Recorded checkpoint means and all five final learner rates. Cases change between checkpoints."><figcaption>Recorded checkpoint means and all five final learner rates. Cases change between checkpoints.</figcaption></figure><figure><img src="figures/outcomes.png" alt="Exclusive terminal outcomes. Safety stops are distinct from recorded physical contacts."><figcaption>Exclusive terminal outcomes. Safety stops are distinct from recorded physical contacts.</figcaption></figure></section><section><h2>Goal retention during policy continuation</h2><p>E2 uses 20 scenarios, two learners, and two action-selection modes, totaling 80 trials. Both actor-only continuations lose goal-reaching performance.</p><div class="table"><table class="dataframe">
   <thead>
     <tr style="text-align: right;">
       <th>Condition</th>
@@ -117,7 +117,7 @@ footer{font-size:14px;color:#4c625a}@media(max-width:600px){main{padding:16px 12
       <td>3</td>
     </tr>
   </tbody>
-</table></div><figure><img src="figures/retention.png" alt="Seed-range shading is not a confidence interval. Uneven training-action counts appear as equally spaced checkpoint categories."><figcaption>Seed-range shading is not a confidence interval. Uneven training-action counts appear as equally spaced checkpoint categories.</figcaption></figure><figure><img src="figures/diagnostics.png" alt="Clearance falls in both conditions. KL describes policy change, not its cause. Zero contacts does not establish improved obstacle avoidance."><figcaption>Clearance falls in both conditions. KL describes policy change, not its cause. Zero contacts does not establish improved obstacle avoidance.</figcaption></figure></section><section><h2>Human-comparison budgets and reward prediction</h2><p>The same 22 strict validation pairs determine accuracy; cross-entropy uses all 37 pairs including 15 ties. Validation was reused for selection and only one reward-model seed is available.</p><div class="table"><table class="dataframe">
+</table></div><figure><img src="figures/retention.png" alt="Shading shows the range of two learner rates. Uneven training-action counts appear as checkpoint categories."><figcaption>Shading shows the range of two learner rates. Uneven training-action counts appear as checkpoint categories.</figcaption></figure><figure><img src="figures/diagnostics.png" alt="Clearance falls in both conditions. KL measures categorical-policy change on fixed observations."><figcaption>Clearance falls in both conditions. KL measures categorical-policy change on fixed observations.</figcaption></figure></section><section><h2>Human-comparison budgets and reward prediction</h2><p>The same 22 strict validation pairs determine accuracy; cross-entropy uses all 37 pairs including 15 ties. Validation was reused for selection and only one reward-model seed is available.</p><div class="table"><table class="dataframe">
   <thead>
     <tr style="text-align: right;">
       <th>Collected comparisons</th>
@@ -164,7 +164,11 @@ footer{font-size:14px;color:#4c625a}@media(max-width:600px){main{padding:16px 12
       <td>0.727</td>
     </tr>
   </tbody>
-</table></div><figure><img src="figures/comparison_budget.png" alt="Strict accuracy rises from 50.00% to 86.36%; cross-entropy is lowest at 150. Navigation was evaluated only at 200 comparisons. Improvements across navigation budgets remain untested."><figcaption>Strict accuracy rises from 50.00% to 86.36%; cross-entropy is lowest at 150. Navigation was evaluated only at 200 comparisons. Improvements across navigation budgets remain untested.</figcaption></figure></section><footer>Evaluation data snapshot: 15 September 2026. See the data guide for source provenance.
-These summaries reproduce the figures; they do not verify historical deployed code or establish physical-robot performance.
-Experiment-specific code is available upon request. The authors wrote the code and used OpenAI Codex to debug and fix it; experiments ran on the ARC cluster and the figures were generated locally from the recorded CSV files.</footer>
+</table></div><figure><img src="figures/comparison_budget.png" alt="Strict accuracy rises from 50.00% to 86.36%; cross-entropy is lowest at 150. Navigation was evaluated only at 200 comparisons."><figcaption>Strict accuracy rises from 50.00% to 86.36%; cross-entropy is lowest at 150. Navigation was evaluated only at 200 comparisons.</figcaption></figure></section><section><h2>Limitations</h2><p>
+E1 and E2 use different scenario panels. Contacts were measured with an active stopping mechanism.
+Both continuation conditions restart critics and replay, so reward effects are not isolated.
+Prediction results reuse validation pairs and one reward-model seed; navigation gains across budgets
+and physical-robot gains remain unmeasured. Reproducing the figures from summaries does not rerun the experiments.
+</p></section><footer>The authors wrote the code and used OpenAI Codex to debug and fix it; experiments ran on the ARC cluster and the figures were generated locally from the recorded CSV files.
+See the <a href="../results/README.md">data guide</a> for provenance and the <a href="../README.md#availability-and-reproducibility">README</a> for availability.</footer>
 </main></body></html>

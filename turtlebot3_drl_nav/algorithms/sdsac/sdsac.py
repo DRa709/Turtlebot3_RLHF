@@ -6,8 +6,7 @@ Q learning, an entropy-change penalty using collection-time policy entropy,
 and the elementwise Q-clip critic loss.  The study deliberately keeps the
 shared SAC infrastructure fixed (one-step uniform replay, fixed temperature,
 hard target updates and the 41-256-256-5 networks) so those three mechanisms
-are the algorithmic treatment.  This module has no ROS dependency and imports
-no other algorithm implementation.
+are the algorithmic treatment.
 """
 
 import hashlib

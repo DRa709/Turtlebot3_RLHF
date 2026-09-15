@@ -37,7 +37,7 @@ After every writer and simulator process stops, the wrapper runs the validator,
 writes `RUN_FILES.sha256` over the exact output inventory, verifies that
 manifest, and only then atomically publishes `COMPLETE`. Symbolic links,
 undeclared files, missing files or changed bytes invalidate the run. Status
-markers and `RUN_FILES.sha256` itself are excluded from the immutable payload so
+markers and `RUN_FILES.sha256` itself are excluded from the recorded payload so
 the commit marker can be written last.
 
 ## Identity prefix on every CSV row
@@ -49,12 +49,12 @@ shared_layer_sha256, release_sha256, package_version, phase_type, phase_label`
 
 - `config_sha256`: length-prefixed digest of every file in `config/` and
   `worlds/`.
-- `shared_layer_sha256`: digest derived from the exact byte-identical scientific
+- `shared_layer_sha256`: digest derived from the exact shared scientific
   core manifest. Package-specific files remain bound by `release_sha256`.
 - `release_sha256`: digest of `RELEASE_MANIFEST.sha256`, whose declared paths
   must exactly equal the package inventory.
-- `container_sha256`: SHA-256 of the submitted SIF bytes, recomputed by the
-  Slurm script rather than trusted from a sidecar.
+- `container_sha256`: checksum of the submitted SIF bytes, recomputed by the
+  Slurm script and compared with its recorded value.
 - `phase_type`: `training` or `evaluation`; `phase_label`: `calibration`,
   `pilot` or `controlled`.
 
@@ -144,8 +144,8 @@ difficulty`.
 
 Double DQN uses only `policy_mode=greedy`. E1 occurs in the
 training job at every checkpoint. Separate post-hoc runs cover all 100 E2 scenarios and 20 E3 anchor
-episodes at each preregistered tier-2 checkpoint. The evaluation run manifest
-binds the exact selected checkpoint path, step and SHA-256.
+episodes at each configured tier-2 checkpoint. The evaluation run manifest
+binds the exact selected checkpoint path, step and checksum.
 
 ## `checkpoints.csv`
 
@@ -168,7 +168,7 @@ The phase block in `config/common_environment.yaml` is the only authority.
 Each checkpoint has 20 E1 episodes. Each tier-2 run has 100 E2 and 20 E3
 episodes. The training budget counts training transitions only.
 
-## Paper products
+## Analysis products
 
 `scripts/make_tables.py` emits T-R1–T-R9 as CSV, Markdown and LaTeX booktabs.
 `scripts/make_figures.py` emits F-R1–F-R14 as vector PDF and 300-dpi PNG. These
@@ -178,7 +178,7 @@ initialization fidelity, learning curves, training windows, spatial performance,
 trajectories, reward composition, outcome composition, checkpoint-wise held-out
 performance, path/time efficiency and timing. The standalone final tables
 select exactly one largest-checkpoint evaluation per Double DQN seed; duplicate
-finals are an error. F-R12 alone uses all preregistered tier-2 checkpoints.
+finals are an error. F-R12 alone uses all configured tier-2 checkpoints.
 Supplying `--expected-algorithms DoubleDQN` activates the Double-DQN-only stop
 gate: missing or duplicate training seeds/tier-2 checkpoints, mixed common
 seeds, mixed scientific-core or container digests, and evaluation runs not

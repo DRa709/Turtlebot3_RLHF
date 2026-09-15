@@ -25,6 +25,12 @@ def walk(root):
 
 
 class PackageHygieneTests(unittest.TestCase):
+    def test_release_manifests_match_package_files(self):
+        from turtlebot3_drl_nav.identity import verify_manifest
+
+        for manifest in ("RELEASE_MANIFEST.sha256", "SHARED_LAYER_MANIFEST.sha256"):
+            self.assertEqual(verify_manifest(ROOT, manifest), [], manifest)
+
     def test_no_symbolic_links_in_release(self):
         self.assertEqual([path for path in walk(ROOT) if os.path.islink(path)], [])
 
@@ -80,7 +86,7 @@ class PackageHygieneTests(unittest.TestCase):
 
     def test_documented_files_exist(self):
         missing = []
-        for doc in ("README.md", "ARC_RUNBOOK.md", "DATA_CONTRACT.md", "RANDOM_INIT_SPEC.md", "VERIFICATION_SCOPE.md", "ALGORITHM.md", "AUDIT_CORRECTIONS.md"):
+        for doc in ("README.md", "ARC_RUNBOOK.md", "DATA_CONTRACT.md", "RANDOM_INIT_SPEC.md", "ALGORITHM.md"):
             with open(os.path.join(ROOT, doc), encoding="utf-8") as stream:
                 text = stream.read()
             for rel in set(re.findall(r"`((?:arc|scripts|config|worlds|launch|apptainer|turtlebot3_drl_nav|tests)/[A-Za-z0-9_./-]+)`", text)):
@@ -103,7 +109,7 @@ class PackageHygieneTests(unittest.TestCase):
         learner_module = executable[:-len("_agent")] if executable.endswith("_agent") else executable
         for algorithm_specific in (f"turtlebot3_drl_nav/{learner_module}.py", f"turtlebot3_drl_nav/{executable}_node.py", f"config/{config_name}"):
             self.assertNotIn(algorithm_specific, listed)
-        for package_specific in ("scripts/preflight.sh", "apptainer/tb3_phase1_foxy.def", "tests/test_package_hygiene.py", "DATA_CONTRACT.md", "VERIFICATION_SCOPE.md"):
+        for package_specific in ("scripts/preflight.sh", "apptainer/tb3_phase1_foxy.def", "tests/test_package_hygiene.py", "DATA_CONTRACT.md"):
             self.assertNotIn(package_specific, listed)
 
     def test_ros_distribution_is_consistent(self):

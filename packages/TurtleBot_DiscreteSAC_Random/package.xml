@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>turtlebot3_drl_nav</name>
-  <version>1.0.3</version>
+  <version>1.0.2</version>
   <description>TurtleBot3 Burger Phase-1 discrete navigation, random-initial-state arm: Discrete SAC package (ROS 2 Foxy, Gazebo 11, PyTorch CPU).</description>
   <maintainer email="ashabarua.ab@gmail.com">Asha Barua</maintainer>
   <license>MIT</license>

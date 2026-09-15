@@ -4,7 +4,6 @@ The learner combines exactly six mechanisms: Double-Q action selection and
 evaluation; a mean-centred dueling categorical network; C51 distributional
 learning; proportional prioritized replay with importance sampling;
 episode-safe three-step returns; and factorized Gaussian NoisyNet exploration.
-The module has no ROS dependency and imports no other algorithm package.
 """
 
 import hashlib

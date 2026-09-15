@@ -26,6 +26,12 @@ def walk(root):
 
 
 class PackageHygieneTests(unittest.TestCase):
+    def test_release_manifests_match_package_files(self):
+        from turtlebot3_drl_nav.identity import verify_manifest
+
+        for manifest in ("RELEASE_MANIFEST.sha256", "SHARED_LAYER_MANIFEST.sha256"):
+            self.assertEqual(verify_manifest(ROOT, manifest), [], manifest)
+
     def test_no_symbolic_links_in_release(self):
         self.assertEqual([path for path in walk(ROOT) if os.path.islink(path)], [])
 
@@ -81,33 +87,13 @@ class PackageHygieneTests(unittest.TestCase):
 
     def test_documented_files_exist(self):
         missing = []
-        for doc in ("README.md", "ARC_RUNBOOK.md", "DATA_CONTRACT.md", "RANDOM_INIT_SPEC.md", "VERIFICATION_SCOPE.md", "ALGORITHM.md", "AUDIT_CORRECTIONS.md", "PROVENANCE.md", "LOCAL_VERIFICATION_REPORT_v1.0.1.md"):
+        for doc in ("README.md", "ARC_RUNBOOK.md", "DATA_CONTRACT.md", "RANDOM_INIT_SPEC.md", "ALGORITHM.md"):
             with open(os.path.join(ROOT, doc), encoding="utf-8") as stream:
                 text = stream.read()
             for rel in set(re.findall(r"`((?:arc|scripts|config|worlds|launch|apptainer|turtlebot3_drl_nav|tests)/[A-Za-z0-9_./-]+)`", text)):
                 if not os.path.exists(os.path.join(ROOT, rel)):
                     missing.append(f"{doc}: {rel}")
         self.assertEqual(missing, [])
-
-    def test_provenance_hashes_match_release_bytes(self):
-        with open(os.path.join(ROOT, "PROVENANCE.md"), encoding="utf-8") as stream:
-            provenance = stream.read()
-        protected = (
-            "turtlebot3_drl_nav/discretesac.py",
-            "turtlebot3_drl_nav/discretesac_agent_node.py",
-            "turtlebot3_drl_nav/initialization.py",
-            "turtlebot3_drl_nav/validator.py",
-            "worlds/phase1_mixed.world",
-            "LOCAL_VERIFICATION_REPORT_v1.0.1.md",
-        )
-        for relative in protected:
-            with open(os.path.join(ROOT, relative), "rb") as stream:
-                digest = hashlib.sha256(stream.read()).hexdigest()
-            self.assertIn(
-                digest,
-                provenance,
-                f"PROVENANCE.md does not authenticate {relative}",
-            )
 
     def test_shared_layer_list_covers_the_common_modules(self):
         with open(os.path.join(ROOT, "SHARED_LAYER_FILES.txt"), encoding="utf-8") as stream:

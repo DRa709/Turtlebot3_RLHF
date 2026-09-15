@@ -1,8 +1,7 @@
 # ARC runbook — TurtleBot_DoubleDQN_Random 1.0.1
 
-This is a direct-ARC, terminal-only workflow. Jupyter is not used for building,
-testing, training, evaluation or analysis. Commands that start tests, Gazebo or
-training belong on compute nodes, not the login node.
+Training and evaluation run as Slurm batch jobs on ARC. Run tests, Gazebo,
+training, and analysis on allocated compute nodes.
 
 ## 1. Suggested layout
 
@@ -13,8 +12,6 @@ training belong on compute nodes, not the login node.
   results/
 ```
 
-Keep this archive separate from every later algorithm archive. Do not merge
-source trees or share a writable run directory.
 
 ## 2. Build and preserve the runtime image
 
@@ -31,7 +28,7 @@ apptainer test /projects/<allocation>/tb3/images/TurtleBot_DoubleDQN_Random_v1.0
 ```
 
 Preserve the exact SIF used for the campaign. Every task recomputes its bytes'
-SHA-256; a sidecar is informative, not authoritative.
+checksum; a sidecar is informative, not authoritative.
 The image contains the runtime for this standalone Double DQN package. Preserve
 its exact bytes and use its recorded digest for every Double DQN training and
 evaluation task. No other algorithm package or result directory is required.
@@ -45,8 +42,8 @@ cd /projects/<allocation>/tb3/packages/TurtleBot_DoubleDQN_Random
 bash scripts/verify_package.sh
 ```
 
-It verifies the exact package inventory and shared layer, refuses notebooks,
-links, CRLF and bad shell/Python syntax, and reproduces the E2 scenario list.
+It verifies the package inventory and shared files, checks links and line endings,
+validates shell/Python syntax, and reproduces the E2 scenario list.
 
 Then allocate a compute node and run every test inside the exact SIF:
 
@@ -105,7 +102,7 @@ python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print(r); raise Sys
 ```
 
 Required result: `COMPLETE` exists; neither `FAILED`, `INTERRUPTED`,
-`ENV_FATAL` nor `AGENT_FATAL` exists; validation passed; immutable inventory
+`ENV_FATAL` nor `AGENT_FATAL` exists; validation passed; recorded inventory
 passed; action holds, sensor age, policy-time simulation drift and obstacle error
 are within the frozen limits. This is the first real ROS/Gazebo-on-ARC evidence.
 Stop and version a correction if it fails.
@@ -132,7 +129,7 @@ sbatch --account=<acct> --partition=<part> \
   --export=ALL,PHASE_LABEL=controlled --array=0-4 arc/doubledqn_array.sbatch
 ```
 
-This launches the preregistered learning seeds 101, 202, 303, 404 and 505. Each
+This launches the configured learning seeds 101, 202, 303, 404 and 505. Each
 run has exactly 500,000 training transitions, policy checkpoints every 25k,
 full checkpoints every 100k and at the budget, and 20 frozen E1 episodes at
 every policy checkpoint. E1 does not consume the training budget.
@@ -147,7 +144,7 @@ python3 -m json.tool "$TB3_OUTPUT/controlled/doubledqn/seed_101/job_<id>/progres
 A ten-minute Slurm warning is forwarded to the agent. It writes an emergency
 full checkpoint and the run ends `INTERRUPTED`, never `COMPLETE`.
 
-## 8. Preregistered controlled evaluation
+## 8. Configured controlled evaluation
 
 Run all five tier-2 checkpoints; each command launches all five learning seeds
 and evaluates 100 E2 scenarios plus 20 E3 anchors:
@@ -162,7 +159,7 @@ done
 
 The dispatcher rejects a step not listed in
 `evaluation_protocol.phases.controlled.tier2_checkpoint_steps`. The evaluation
-wrapper also rejects an unsealed training run, changed package/image, ambiguous
+wrapper also rejects an unvalidated training run, changed package/image, ambiguous
 checkpoint row, path outside `checkpoints/`, or digest mismatch.
 
 The 500k E2/E3 runs feed final tables. All five checkpoints feed the
@@ -193,20 +190,20 @@ apptainer exec --cleanenv \
 Tables are written as CSV, Markdown and LaTeX booktabs. Figures are vector PDF
 and 300-dpi PNG at IEEE column sizes. Complete-run discovery rechecks validation
 and run-file integrity; `--include-incomplete` is diagnostic only and must not be
-used for paper claims.
+used for reported results.
 
 With `--expected-algorithms DoubleDQN`, analysis fails unless Double DQN has
-exactly one training run for every preregistered seed and one evaluation run for
-every preregistered seed/checkpoint. It also requires common randomization
+exactly one training run for every configured seed and one evaluation run for
+every configured seed/checkpoint. It also requires common randomization
 seeds, one shared-layer digest, one container digest, and an explicit
 evaluation-to-training link. The passing matrix is preserved as
 `campaign_completeness.json` beside the tables.
 
-## 10. Certification boundary
+## 10. Runtime validation
 
-The archive's pure and mock tests verify equations, state-machine ordering,
-randomization, recording, validation and failure paths. They do not emulate ROS
-transport scheduling, Gazebo plugins, Apptainer or Slurm. Only the exact-image
-container test plus successful calibration/pilot/controlled ARC gates establish
-that evidence. Preserve the package ZIP, SIF, Slurm outputs and every sealed run
-directory with the paper artifacts.
+Package tests cover update equations, episode ordering, recording, and validation.
+Use the container tests, simulation calibration, and pilot runs to check the
+ROS/Gazebo, Apptainer, and Slurm setup. Keep the package, image, logs, and run
+directories with the experiment records.
+
+Package and image integrity are checked with SHA-256 manifests.

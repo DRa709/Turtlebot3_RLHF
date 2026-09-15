@@ -1,8 +1,7 @@
 # ARC runbook — TurtleBot_DQN_Random 1.1.7
 
-This is a direct-ARC, terminal-only workflow. Jupyter is not used for building,
-testing, training, evaluation or analysis. Commands that start tests, Gazebo or
-training belong on compute nodes, not the login node.
+Training and evaluation run as Slurm batch jobs on ARC. Run tests, Gazebo,
+training, and analysis on allocated compute nodes.
 
 ## 1. Suggested layout
 
@@ -14,10 +13,8 @@ training belong on compute nodes, not the login node.
   slurm-logs/
 ```
 
-Keep this archive separate from every later algorithm archive. Do not merge
-source trees or share a writable run directory.
 The package, image, results and Slurm-log paths must be whitespace-free and
-must not be nested inside the authenticated package directory. The supported
+must not be nested inside the verified package directory. The supported
 submission wrapper enforces this layout.
 
 ## 2. Build and preserve the runtime image
@@ -36,21 +33,11 @@ sha256sum /projects/<allocation>/tb3/dqn/image/TurtleBot_DQN_Random_Runtime_Foxy
   > /projects/<allocation>/tb3/dqn/image/TurtleBot_DQN_Random_Runtime_Foxy.sif.sha256
 ```
 
-Do not invoke `apptainer build ... apptainer/tb3_phase1_foxy.def` directly.
-`scripts/build_sif.sh` first rejects every cache, bytecode, notebook,
-repository-metadata and build/install/log path. It then creates a new temporary
-tree containing only files authenticated by `RELEASE_MANIFEST.sha256`, verifies
-that materialized tree, and invokes the definition from there. The definition
-performs the same forbidden-path check before any package Python import and
-then authenticates the embedded copy again. The dependency pins and scientific
-learner/environment source are unchanged from v1.1.6. The SIF filename is not
-an identity authority; its recomputed SHA-256 is.
-
-Preserve the exact read-only SIF used for the campaign. Every task recomputes
-its bytes' SHA-256; a sidecar is informative, not authoritative. The image
-contains the ROS/Gazebo/Python runtime, the complete DQN release, and its
-trusted runtime entrypoints. No other algorithm package or result directory is
-needed by this workflow.
+Use `scripts/build_sif.sh` to build the image from the files listed in
+`RELEASE_MANIFEST.sha256`. The script checks the source inventory, creates a
+temporary build tree, and verifies the copy embedded in the image. Keep the
+resulting SIF read-only for the campaign. Each task verifies the image checksum
+before running its packaged ROS/Gazebo/Python environment and DQN source.
 
 ## 3. Package check and mandatory container tests
 
@@ -63,11 +50,11 @@ bash scripts/verify_package.sh
 
 It verifies the exact package inventory and shared layer; rejects `.pyc`,
 `.pyo`, `__pycache__`, `.pytest_cache`, `.git`, `build`, `install`, `log`,
-`*.egg-info`, notebooks and links; checks LF and shell/Python syntax; and
+`*.egg-info`, and symbolic links; checks LF and shell/Python syntax; and
 reproduces the E2 scenario list. Forbidden paths cause failure before any
 package module can be imported.
 
-The `apptainer test` command above authenticates the embedded release and runs
+The `apptainer test` command above verifies the embedded release and runs
 the complete suite. To capture a separate test log on the compute node, run:
 
 ```bash
@@ -78,12 +65,11 @@ apptainer exec --cleanenv \
   | tee /projects/<allocation>/tb3/dqn/slurm-logs/v1.1.7-tests.log
 ```
 
-`scripts/run_tests.sh` treats any skipped test as failure. Do not submit a
-calibration job until it is fully green.
+`scripts/run_tests.sh` requires every test to run and pass before calibration.
 
-Before calibration, repeat the live Foxy/Gazebo obstacle probe used for the
-1.1.0 audit for at least 10 simulation seconds. This spans two 5-second
-half-periods. Retain the requested schedule, simulation-time samples, measured
+Before calibration, run the live Foxy/Gazebo obstacle probe for at least 10
+simulation seconds, covering two 5-second half-periods. Retain the requested
+schedule, simulation-time samples, measured
 odometry and independent analytic displacements. The maximum error of each
 obstacle must remain at or below 0.05 m, including both reversal boundaries.
 This live check is mandatory because a static world-file test cannot certify a
@@ -104,16 +90,16 @@ outside the package. Package, image, result, lease and Slurm-log paths must use
 only letters, digits, `/`, `.`, `_`, `+`, `@` and `-`; this literal-safe
 grammar prevents shell/container evaluation, and percent substitution is
 additionally forbidden in every resolved log path.
-`TB3_LEASES` is not a second storage boundary: if supplied, it must resolve
-exactly to `$TB3_OUTPUT/.leases`. Both the login-node wrapper and allocated
+When supplied, `TB3_LEASES` must resolve to `$TB3_OUTPUT/.leases`.
+Both the login-node wrapper and allocated
 batch script enforce this after canonicalization.
 
 The wrapper runs the trusted verifier from the SIF against both the embedded
 release and the external extraction, which is mounted only at a fixed read-only
 inspection path. Their release digests must agree. It records the SIF and
-embedded-release SHA-256 values, derives the phase's frozen array range, copies
+embedded-release checksum values, derives the phase's frozen array range, copies
 the selected batch script to a read-only snapshot whose expected digest comes
-from the manifest inside the authenticated SIF, supplies
+from the manifest inside the verified SIF, supplies
 absolute Slurm-log paths, and accepts only exact attached-value site options:
 `--account=`,
 `--partition=`, `--qos=`, `--reservation=` and `--constraint=`. It refuses all
@@ -170,7 +156,7 @@ python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print(r); raise Sys
 ```
 
 Required result: `COMPLETE` exists; neither `FAILED`, `INTERRUPTED`,
-`ENV_FATAL` nor `AGENT_FATAL` exists; validation passed; immutable inventory
+`ENV_FATAL` nor `AGENT_FATAL` exists; validation passed; recorded inventory
 passed; action holds, sensor age, policy-time simulation drift and obstacle error
 are within the frozen limits. This is the first real ROS/Gazebo-on-ARC evidence.
 Stop and version a correction if it fails.
@@ -196,7 +182,7 @@ bash "$TB3_REPO/arc/submit_dqn.sh" train controlled \
   --account=<acct> --partition=<part>
 ```
 
-This launches the preregistered learning seeds 101, 202, 303, 404 and 505. Each
+This launches the configured learning seeds 101, 202, 303, 404 and 505. Each
 run has exactly 500,000 training transitions, policy checkpoints every 25k,
 full checkpoints every 100k and at the budget, and 20 frozen E1 episodes at
 every policy checkpoint. E1 does not consume the training budget.
@@ -211,7 +197,7 @@ python3 -m json.tool "$TB3_OUTPUT/controlled/dqn/seed_101/job_<id>/progress.json
 A ten-minute Slurm warning is forwarded to the agent. It writes an emergency
 full checkpoint and the run ends `INTERRUPTED`, never `COMPLETE`.
 
-## 8. Preregistered controlled evaluation
+## 8. Configured controlled evaluation
 
 Run all five tier-2 checkpoints; each command launches all five learning seeds
 and evaluates 100 E2 scenarios plus 20 E3 anchors:
@@ -225,7 +211,7 @@ done
 
 The dispatcher rejects a step not listed in
 `evaluation_protocol.phases.controlled.tier2_checkpoint_steps`. The evaluation
-wrapper also rejects an unsealed training run, changed package/image, ambiguous
+wrapper also rejects an unvalidated training run, changed package/image, ambiguous
 checkpoint row, path outside `checkpoints/`, or digest mismatch.
 
 The 500k E2/E3 runs feed final tables. All five checkpoints feed the
@@ -234,8 +220,8 @@ checkpoint-wise held-out figure.
 ## 9. Tables and figures
 
 Run on a compute node inside the preserved DQN SIF. Point `--results` at the
-root containing only the sealed DQN controlled-run directories. Analysis code
-is taken from the same immutable in-image release used for training.
+root containing only the validated DQN controlled-run directories. Analysis code
+is taken from the same recorded in-image release used for training.
 
 ```bash
 apptainer exec --cleanenv \
@@ -256,20 +242,20 @@ apptainer exec --cleanenv \
 Tables are written as CSV, Markdown and LaTeX booktabs. Figures are vector PDF
 and 300-dpi PNG at IEEE column sizes. Complete-run discovery rechecks validation
 and run-file integrity; `--include-incomplete` is diagnostic only and must not be
-used for paper claims.
+used for reported results.
 
 With `--expected-algorithms DQN`, analysis fails unless DQN has exactly one
-training run for every preregistered seed and one evaluation run for every
-preregistered seed/checkpoint. It also requires common randomization seeds, one
+training run for every configured seed and one evaluation run for every
+configured seed/checkpoint. It also requires common randomization seeds, one
 shared-layer digest, one container digest, and an explicit evaluation-to-
 training link. The passing matrix is preserved as
 `campaign_completeness.json` beside the tables.
 
-## 10. Certification boundary
+## 10. Runtime validation
 
-The archive's pure and mock tests verify equations, state-machine ordering,
-randomization, recording, validation and failure paths. They do not emulate ROS
-transport scheduling, Gazebo plugins, Apptainer or Slurm. Only the exact-image
-container test plus successful calibration/pilot/controlled ARC gates establish
-that evidence. Preserve the package ZIP, SIF, Slurm outputs and every sealed run
-directory with the paper artifacts.
+Package tests cover update equations, episode ordering, recording, and validation.
+Use the container tests, simulation calibration, and pilot runs to check the
+ROS/Gazebo, Apptainer, and Slurm setup. Keep the package, image, logs, and run
+directories with the experiment records.
+
+Package and image integrity are checked with SHA-256 manifests.

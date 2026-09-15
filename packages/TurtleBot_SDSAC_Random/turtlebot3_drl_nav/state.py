@@ -1,7 +1,6 @@
 """Phase-1 observation, action, reward, and termination definitions.
 
-This module deliberately has no ROS dependency so its numerical semantics can be
-unit tested on a workstation or on ARC without starting Gazebo.
+Numerical observation and action utilities for simulation and evaluation.
 """
 
 import math

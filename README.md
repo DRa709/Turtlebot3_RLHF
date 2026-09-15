@@ -65,7 +65,7 @@ We study a partially observed navigation process with latent state $x_t$, observ
 $o_t$, dynamics $P(x_{t+1}\mid x_t,a_t)$, observation mapping $O(o_t\mid x_t)$,
 initial-state distribution $\rho_0$, reward $r$, and discount $\gamma$.
 A reactive categorical policy $\pi(a\mid o)$ selects one of five fixed commands.
-The observation vector is not assumed to be a complete Markov state.
+The observation vector provides a partial view of the robot and environment.
 
 Given a pretrained policy $\pi_0$ and a total budget $N$ of human comparisons,
 fit a preference reward model using the usable fitting pairs, select its checkpoint
@@ -81,11 +81,8 @@ p_G(\pi)\ge p_G(\pi_0)-\delta_G,\qquad p_C(\pi)\le\epsilon_C.$$
 
 $W_H$ is a future blinded human-comparison score (win 1, tie 0.5, loss 0 among
 judgeable pairs). $p_G$ and $p_C$ are goal and contact probabilities under a fixed
-evaluation scenario distribution. This is a **desired evaluation objective**;
-the tested SAC updates do not enforce these constraints. Thresholds were not
-preregistered, and fresh human preference over the adapted policies was not measured.
-Safety-stop rate and obstacle clearance are companion measures because stopping
-changes exposure to subsequent contacts.
+evaluation scenario distribution. This is the **desired evaluation objective**.
+Safety-stop rate and obstacle clearance provide additional measures of navigation behavior.
 
 ### Observations and discrete actions
 
@@ -105,29 +102,24 @@ $0^\circ$. Normalization bounds come from the active configuration.
 | 4 | Rotate right in place | 0.00 | -1.0 |
 
 These are the current `ActionMap` defaults and the study's reference commands.
-The policy selects a discrete action ID; it does not generate continuous-valued
-commands. Route smoothness would require a separate measurement. Matching each
-evaluated deployment to this source remains part of the
-[reproducibility scope](docs/EVALUATION.md#reproducibility-scope).
+The policy selects a discrete action ID mapped to the corresponding command.
 
 Terminal outcomes are **physical contact**, **safety stop**, **goal reached**, or
 **time-limit truncation**, with contact > stop > goal precedence in the reward
 implementation. Default thresholds are 0.16 m for a proximity stop and 0.20 m
-for goal tolerance. A stop is not a physical collision. Historical and later
-continuation reset/clearance conventions must be checked separately.
+for goal tolerance. Stops and physical contacts are recorded as separate outcomes.
 
 ## Algorithms
 
 The benchmark evaluates DQN, Double DQN, Dueling Double DQN, Rainbow DQN,
-Discrete SAC, and a categorical adaptation of SD-SAC. Names identify evaluated
-implementations; the study does not claim a new SAC update or universal rankings.
+Discrete SAC, and a categorical adaptation of SD-SAC.
 
 - [Discrete SAC](turtlebot3_drl_nav/algorithms/discrete_sac/discretesac.py) uses a
   categorical actor, two action-value critics, and exact sums over five actions.
   Its configuration fixes entropy temperature at `alpha=0.2`.
 - [SD-SAC](turtlebot3_drl_nav/algorithms/sdsac/sdsac.py) is a controlled adaptation
   of Zhou et al.'s method with double-average Q learning, an entropy-change penalty,
-  and Q clipping. It does not bin a continuous Gaussian policy.
+  and Q clipping.
 - Discrete SAC follows [Christodoulou (2019)](https://arxiv.org/abs/1910.07207);
   SD-SAC follows [Zhou et al. (2024)](https://arxiv.org/abs/2209.10081).
   See the source headers and configuration files for implementation details.
@@ -142,7 +134,7 @@ each trained for 500,000 actions. The final primary evaluation contains 20 E1
 episodes per learner, or **100 trials per method**. The primary channel is greedy
 for the DQN family and deterministic for the SAC family.
 
-<!-- BEGIN AUDITED_BENCHMARK -->
+<!-- BEGIN RESULTS_BENCHMARK -->
 | Method | Goals | Success (%) | Learner SD (pp) | Safety stops | Contacts | Timeouts |
 | --- | --- | --- | --- | --- | --- | --- |
 | DQN | 90/100 | 90 | 9.35 | 9 | 0 | 1 |
@@ -151,28 +143,23 @@ for the DQN family and deterministic for the SAC family.
 | Rainbow | 97/100 | 97 | 2.74 | 3 | 0 | 0 |
 | Discrete SAC | 97/100 | 97 | 6.71 | 3 | 0 | 0 |
 | SD-SAC | 95/100 | 95 | 8.66 | 4 | 0 | 1 |
-<!-- END AUDITED_BENCHMARK -->
+<!-- END RESULTS_BENCHMARK -->
 
 The final Discrete SAC counts are **20 + 20 + 17 + 20 + 20 = 97 goals**, with three
 safety stops, no timeouts, and no recorded physical contacts. Its five learner
 rates are 100%, 100%, 85%, 100%, 100% (sample SD 6.71 percentage points).
-The 97% total is an empirical rate on this panel, not a guarantee for new scenarios
-or evidence that preferences caused the performance. Double DQN and Rainbow tie
-at 97%; the results do not establish unique Discrete SAC superiority.
 
 ![Scheduled benchmark and final learner rates](benchmarks/figures/benchmark.png)
 
 Curves use 20 scheduled checkpoints at 25,000-action intervals. Requested cases
 match across methods within a checkpoint/episode block but change between checkpoints.
 Across all checkpoints there are 12,000 primary evaluations; stochastic evaluation
-of the two SAC methods adds 4,000. These additional episodes are not the denominator
-of the final 97% result. Lines connect recorded checkpoint means; final dots show
-all five learners and black marks show their means.
+of the two SAC methods adds 4,000. The final result uses the 100 primary trials
+per method. Lines connect recorded checkpoint means; final dots show all five
+learners and black marks show their means.
 
 ![Exclusive final benchmark outcomes](benchmarks/figures/outcomes.png)
 
-Zero recorded contacts must be interpreted alongside the active safety-stop
-mechanism. It does not show that the policy would avoid contacts without that mechanism.
 
 ## Preference-based continuation: observed outcomes
 
@@ -182,36 +169,33 @@ with fresh critics, optimizers, and replay. One used the original reward; the
 other used a fixed reward learned from 200 collected human comparisons.
 
 The E2 development panel pools 20 scenarios, two learners, and two action-selection
-modes: 80 trials per checkpoint. It differs from the E1 benchmark, so its 97.5%
-baseline must not be presented as an improvement over the E1 97% result.
+modes: 80 trials per checkpoint. E2 uses a separate scenario panel from E1.
 
-<!-- BEGIN AUDITED_CONTINUATION -->
+<!-- BEGIN RESULTS_CONTINUATION -->
 | Condition | Goals | Success (%) | Safety stops | Contacts | Timeouts |
 | --- | --- | --- | --- | --- | --- |
 | Frozen baseline | 78/80 | 97.5 | 2 | 0 | 0 |
 | Original reward, +10k actions | 6/80 | 7.5 | 68 | 0 | 6 |
 | Preference reward (200), +10k actions | 1/80 | 1.25 | 76 | 0 | 3 |
-<!-- END AUDITED_CONTINUATION -->
+<!-- END RESULTS_CONTINUATION -->
 
 ![Continuation goal rates and safety stops](benchmarks/figures/retention.png)
 
 Both continuations lose goal-reaching ability. At 10,000 additional actions,
 preference continuation has 1.25% goal success versus 7.5% under the original
-reward. The original-reward decline means this experiment does not isolate the
-preference reward as the sole cause. Shading shows the range of two learner rates,
-not a confidence interval. Uneven action counts are displayed as checkpoint categories.
+reward. Shading shows the range of two learner rates. Uneven action counts are
+displayed as checkpoint categories.
 
 ![Clearance and categorical-policy change](benchmarks/figures/diagnostics.png)
 
 Mean episode-minimum clearance falls from 0.379 m to 0.176 m with original reward
 and 0.155 m with preference reward. Across the 1,144 checkpoint evaluations
-(E2 plus the small E3 panel), there are zero recorded contacts. Increased stops and
-reduced clearance do not establish collision reduction or improved obstacle avoidance.
-KL curves describe policy change on fixed observations; they do not establish its cause.
+(E2 plus the small E3 panel), there are zero recorded contacts. KL curves describe
+the categorical policy's change on a fixed observation set.
 
 ## Human-comparison budgets: reward prediction
 
-<!-- BEGIN AUDITED_COMPARISONS -->
+<!-- BEGIN RESULTS_COMPARISONS -->
 | Collected comparisons | Fitting pairs | Correct / strict pairs | Accuracy (%) | Pair cross-entropy |
 | --- | --- | --- | --- | --- |
 | 20 | 15 | 11/22 | 50.00 | 1.216 |
@@ -219,27 +203,35 @@ KL curves describe policy change on fixed observations; they do not establish it
 | 100 | 75 | 17/22 | 77.27 | 0.830 |
 | 150 | 109 | 17/22 | 77.27 | 0.698 |
 | 200 | 143 | 19/22 | 86.36 | 0.727 |
-<!-- END AUDITED_COMPARISONS -->
+<!-- END RESULTS_COMPARISONS -->
 
 ![Reward prediction at five human-comparison budgets](benchmarks/figures/comparison_budget.png)
 
 Accuracy uses the **same 22 strict validation pairs**; cross-entropy uses all 37
 pairs including 15 ties. The validation set was reused for model selection, and
-only one reward-model seed is available. These are descriptive validation results,
-not independent-test estimates or an isolated causal effect of annotation count.
-Total comparison budgets include fitting, validation, and unjudgeable responses.
+one reward-model seed is available. Total comparison budgets include fitting,
+validation, and unjudgeable responses.
 
 Strict accuracy increases from 50.00% to 86.36%, with a plateau from 100 to 150.
 Cross-entropy is lowest at 150 comparisons and worsens at 200. **Navigation was
-evaluated only at 200 comparisons.** There are no measured navigation success
-rates at 20, 50, 100, or 150 to plot as a budget-performance curve.
+evaluated only at 200 comparisons.**
 
 The next hypothesis is that, after establishing stable continuation, more
 informative comparisons can improve goal completion and obstacle avoidance while
 retaining baseline competence. Test separate copies of the same baseline at each
 budget with equal additional training actions, matched scenarios, separate final
-tests, and repeated policy/reward-model seeds. No perception or obstacle-recognition
-improvement has yet been established.
+tests, and repeated policy/reward-model seeds.
+
+## Limitations
+
+The benchmark describes the evaluated scenarios, with three methods tied at 97%.
+Contacts were measured with an active stopping mechanism. Both actor-only
+continuations lost goal success, so reward choice is not isolated as the cause.
+Reward-prediction results reuse a validation set and one reward-model seed;
+navigation gains across comparison budgets, obstacle-recognition improvements,
+route smoothness, and physical-robot gains remain unmeasured. The goal-retention
+constraints above were not enforced, their thresholds were not set in advance,
+and fresh human comparisons of the adapted policies were not collected.
 
 ## Rebuild the reported figures
 
@@ -247,15 +239,14 @@ Python 3.8+ with NumPy, pandas, and Matplotlib is sufficient for the report:
 
 ```bash
 python -m pip install numpy pandas matplotlib
-python benchmarks/build_audited_report.py
+python benchmarks/build_report.py
 python -m pip install pytest
 python -m pytest tests/test_benchmark_reporting.py tests/test_pomdp_contracts.py tests/test_geometry.py -q
 ```
 
 This rebuilds the tables, dashboard, and plots from the included result summaries.
-It performs consistency and provenance checks; it does not train a policy or rerun
-Gazebo. The [data README](benchmarks/data/audited/README.md) specifies which checks
-are reproducible from aggregates and which source checks used episode-level records.
+It checks the data manifest and accounting consistency. The [data guide](results/README.md)
+describes each table and the verification steps.
 
 `generate_benchmark_suite.py` is a separate **training-episode** exploration tool:
 
@@ -264,9 +255,9 @@ python benchmarks/generate_benchmark_suite.py --input-dirs /path/to/recorded/run
 python benchmarks/generate_benchmark_suite.py --demo --output-dir /path/to/preview
 ```
 
-Synthetic previews are isolated under `synthetic_demo`, visibly labeled, and never
-mixed with real input directories. Rolling training success and first crossings
-are not final held-out success or the paper's sustained-success criterion.
+Synthetic previews are labeled and stored under `synthetic_demo`. Training reports
+show rolling success and first threshold crossings; evaluation reports use the
+specified held-out trials.
 
 ## Availability and reproducibility
 
@@ -284,8 +275,7 @@ and the scope of simulation and physical-robot validation.
 - **Asha Barua** — [@ashabarua](https://github.com/ashabarua), ashabarua@vt.edu.
 - **Dhruv Shankar Ray** — [@DRa709](https://github.com/DRa709), package maintainer.
 
-Use the following citation for the software. Research papers have their own
-author lists and citation records.
+Use the following citation for the software.
 
 ```bibtex
 @software{baruaandray2026turtlebot3rlhf,
@@ -302,5 +292,5 @@ commit/release containing the reported tables. See [CITATION.cff](CITATION.cff).
 
 The authors wrote the navigation, training, and evaluation code and used OpenAI
 Codex to debug and fix it. The experiments were run on the ARC cluster, the recorded
-results were saved as the CSV files under `benchmarks/data/audited/`, and the
+results were saved as the CSV files under `results/`, and the
 figures were generated locally from those files.

@@ -70,4 +70,3 @@ tests/test_orchestrator_ordering.py
 tests/test_task_isolation.py
 DATA_CONTRACT.md
 RANDOM_INIT_SPEC.md
-VERIFICATION_SCOPE.md

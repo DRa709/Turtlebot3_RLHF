@@ -1,7 +1,7 @@
 # Data contract — standalone Rainbow DQN
 
 Executable schemas are in `turtlebot3_drl_nav/recorder.py`; independent checks
-are in `turtlebot3_drl_nav/validator.py`. Analysis accepts only sealed runs with
+are in `turtlebot3_drl_nav/validator.py`. Analysis accepts only validated runs with
 `algorithm=RainbowDQN`.
 
 ## Run commit protocol
@@ -101,7 +101,7 @@ Evaluation transitions never increment the training counter or mutate replay.
 
 ## `checkpoints.csv`
 
-Each row records environment/gradient steps, kind, confined path, SHA-256,
+Each row records environment/gradient steps, kind, confined path, checksum,
 simulation/wall time and load-back result. Policy checkpoints occur at the
 phase cadence. Full checkpoints occur at the full cadence and exact final
 budget and preserve networks, optimizer, PER, n-step tail, counters and all RNG
@@ -117,7 +117,7 @@ states. Files are published atomically and recorded only after load validation.
 
 ## Standalone tables and figures
 
-`scripts/make_tables.py` and `scripts/make_figures.py` read only sealed Rainbow
+`scripts/make_tables.py` and `scripts/make_figures.py` read only validated Rainbow
 runs and require the complete phase-specific seed/checkpoint matrix. They
 produce Rainbow-only outcomes, learning efficiency, failure anatomy, per-seed
 results, provenance, learner diagnostics, initialization fidelity, learning

@@ -1,7 +1,7 @@
 # Random initial-state specification — $\nu_R$ (standalone package 1.0.1)
 
 The executable sampler is `turtlebot3_drl_nav/initialization.py`; arena geometry
-comes from `turtlebot3_drl_nav/geometry.py` parsing the same authenticated world
+comes from `turtlebot3_drl_nav/geometry.py` parsing the same verified world
 that Gazebo loads. Numerical values live only in
 `config/common_environment.yaml`.
 
@@ -57,7 +57,7 @@ is 0.30 m, so the declared law contains no near-penalty-band starts.
 | `evaluation_seed` | E1/E3 and frozen E2 generation | 9001 |
 
 The learning seed affects the learner only. A 63-bit generator seed is the first
-eight SHA-256 bytes of the ordered tuple `(role seed, stream tag, indices)`.
+eight checksum bytes of the ordered tuple `(role seed, stream tag, indices)`.
 Therefore an episode draw does not depend on earlier rejection counts, and the
 same role seeds give the same episode-indexed starts and obstacle phases across
 all separate algorithm packages.
@@ -111,8 +111,7 @@ Every training and evaluation episode, including episode 1, follows this order:
    publish the first policy observation.
 
 Service, acknowledgement, sensor and action timeouts are fatal. Failed
-teleports, stale sensors or invalid realized poses never fall back to a default
-spawn.
+teleports, stale sensors or invalid realized poses cause the run to stop.
 
 ## Evaluation conditions
 

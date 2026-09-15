@@ -1,4 +1,4 @@
-"""Regression checks for contact/stop separation and audited reporting."""
+"""Regression checks for contact/stop separation and result reporting."""
 from pathlib import Path
 import json
 import sys
@@ -6,9 +6,9 @@ import pandas as pd
 import pytest
 import matplotlib.pyplot as plt
 from benchmarks.outcomes import episode_outcomes, outcome_counts
-from benchmarks.audited_results import load_audited_data, validate_data
+from benchmarks.result_data import load_results, validate_data
 from benchmarks import generate_benchmark_suite as legacy
-from benchmarks.build_audited_report import report_tables
+from benchmarks.build_report import report_tables
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -63,18 +63,18 @@ def test_missing_training_axis_is_not_fabricated(tmp_path):
     assert legacy.load_episodes_dataframe(str(path)) is None
 
 
-def test_audited_97_percent_is_reproduced_from_five_learners():
-    tables = load_audited_data(ROOT / 'benchmarks/data/audited')
+def test_97_percent_is_reproduced_from_five_learners():
+    tables = load_results(ROOT / 'results')
     learners = tables['seed_results'].query("algorithm == 'DiscreteSAC'").sort_values('learning_seed')
     assert (learners.final_success * 20).round().tolist() == [20, 20, 17, 20, 20]
     assert sum((learners.final_success * 20).round()) == 97
-    headers, rows = report_tables(tables)['AUDITED_BENCHMARK']
+    headers, rows = report_tables(tables)['RESULTS_BENCHMARK']
     row = next(row for row in rows if row[0] == 'Discrete SAC')
     assert row[1:] == ['97/100', '97', '6.71', '3', '0', '0']
 
 
 def test_altered_success_percentage_is_rejected():
-    tables = load_audited_data(ROOT / 'benchmarks/data/audited')
+    tables = load_results(ROOT / 'results')
     mask = tables['summary'].algorithm == 'DiscreteSAC'
     tables['summary'].loc[mask, 'final_success'] = 0.946
     with pytest.raises(ValueError, match='success/count mismatch'):
@@ -82,7 +82,7 @@ def test_altered_success_percentage_is_rejected():
 
 
 def test_continuation_cannot_merge_safety_into_contact():
-    tables = load_audited_data(ROOT / 'benchmarks/data/audited')
+    tables = load_results(ROOT / 'results')
     tables['checkpoint_summary'].loc[0, 'collision'] = 2
     with pytest.raises(ValueError, match='outcomes must sum'):
         validate_data(tables)

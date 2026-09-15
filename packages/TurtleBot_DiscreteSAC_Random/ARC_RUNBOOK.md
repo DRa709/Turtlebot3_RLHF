@@ -1,8 +1,7 @@
 # ARC runbook — TurtleBot_DiscreteSAC_Random 1.0.2
 
-This is a direct-ARC, terminal-only procedure. Jupyter is not used. Run tests,
-Gazebo, training, evaluation and analysis on allocated compute nodes rather than
-the login node.
+Training and evaluation run as Slurm batch jobs on ARC. Run tests, Gazebo,
+training, and analysis on allocated compute nodes.
 
 ## 1. Independent ARC layout
 
@@ -15,10 +14,9 @@ Use a directory dedicated to this algorithm:
   results/
 ```
 
-Do not place another algorithm's source, checkpoints, runs or analysis products
-under this directory. Replace `<allocation>` in every command below.
+Replace `<allocation>` with the ARC allocation in every command.
 
-## 2. Build and authenticate this package's image
+## 2. Build and verify this package's image
 
 On an allocated compute node:
 
@@ -35,7 +33,7 @@ apptainer test "$TB3_IMAGE"
 ```
 
 Preserve the exact SIF bytes after testing. Every Slurm task independently
-recomputes the image SHA-256.
+recomputes the image checksum.
 
 ## 3. Verify the package and execute every test
 
@@ -115,7 +113,7 @@ sbatch --account=<acct> --partition=<part> \
 ```
 
 Both training and both evaluation tasks must satisfy the calibration checks.
-Run directories are create-only; never resubmit into an existing job directory.
+Create a new run directory for each submission.
 
 ## 7. Controlled training
 
@@ -158,7 +156,7 @@ done
 
 Each task evaluates exactly 100 frozen E2 scenarios and 20 E3 anchors in each
 of two channels: seeded stochastic categorical actions and deterministic
-argmax actions (240 episodes total). The wrapper rejects an unsealed training run, unexpected
+argmax actions (240 episodes total). The wrapper rejects an unvalidated training run, unexpected
 checkpoint step, ambiguous checkpoint, changed checkpoint digest, changed
 package identity or changed image identity.
 
@@ -190,15 +188,11 @@ Tables are written as CSV, Markdown and LaTeX; figures are vector PDF and
 300-dpi PNG. `standalone_completeness.json` must pass. `--include-incomplete`
 is diagnostic-only and cannot support reported results.
 
-## 10. Verification boundary
+## 10. Runtime validation
 
-`LOCAL_VERIFICATION_REPORT_v1.0.1.md` records 163/163 tests in the intended
-isolated runtime plus successful Foxy/Gazebo readiness, relocation, full
-reversal-interval obstacle tracking and physical-contact probes. The protected
-implementation proven by that audit is unchanged in v1.0.2.
+Package tests cover update equations, episode ordering, recording, and validation.
+Use the container tests, simulation calibration, and pilot runs to check the
+ROS/Gazebo, Apptainer, and Slurm setup. Keep the package, image, logs, and run
+directories with the experiment records.
 
-Those results do not certify the ARC-built SIF, Slurm lifecycle, calibration
-or pilot. Under this project's terminology, the package is not frozen/verified
-until the v1.0.2 exact-SIF test, ARC calibration and unchanged two-seed pilot
-gates all pass. Preserve the ZIP, SIF, SIF digest, Slurm logs and sealed result
-directories.
+Package and image integrity are checked with SHA-256 manifests.

@@ -2,7 +2,7 @@
 """Draw SD-SAC random-arm figures from completed run directories and
 the frozen world, in IEEE camera-ready form: Times-like 8 pt text, single
 (3.5 in) or double (7.16 in) column widths, vector PDF with Type 42 fonts plus
-300 dpi PNG. Terminal only.
+300 dpi PNG.
 
     python3 scripts/make_figures.py --results <root> --out <dir> [--formats pdf,png] [--style ieee|default]
 """

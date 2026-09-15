@@ -6,7 +6,7 @@ package_name = "turtlebot3_drl_nav"
 
 setup(
     name=package_name,
-    version="1.1.8",
+    version="1.1.7",
     packages=[package_name],
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),

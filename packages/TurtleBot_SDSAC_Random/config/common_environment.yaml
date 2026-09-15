@@ -79,7 +79,7 @@ dynamic_obstacles:
 
 evaluation_protocol:
   # Consumed by the agent nodes, the wrappers and the validator (D-4, D-5, D-8).
-  # Not ROS parameters. The three execution phases are preregistered here; a
+  # Not ROS parameters. The three execution phases are configured here; a
   # run records its phase_label in the run identity and the validator checks the
   # run against that phase's block. Learning seeds never touch initialization.
   tier1_condition: E1

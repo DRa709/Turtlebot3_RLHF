@@ -1,7 +1,4 @@
-"""Consistency checks for the published aggregate tables.
-
-These checks do not replace episode-level audit or simulator reproduction.
-"""
+"""Hash and accounting checks for the published aggregate tables."""
 import hashlib
 import json
 from pathlib import Path
@@ -18,7 +15,7 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def load_audited_data(directory):
+def load_results(directory):
     directory = Path(directory)
     manifest = json.loads((directory / 'manifest.json').read_text(encoding='utf-8'))
     for name, expected in manifest['sha256'].items():
